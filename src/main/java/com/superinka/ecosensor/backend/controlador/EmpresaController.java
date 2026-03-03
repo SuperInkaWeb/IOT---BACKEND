@@ -1,0 +1,33 @@
+package com.superinka.ecosensor.backend.controlador;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import com.superinka.ecosensor.backend.modelo.Empresa;
+import com.superinka.ecosensor.backend.servicio.EmpresaService;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/empresas")
+@RequiredArgsConstructor
+@CrossOrigin
+public class EmpresaController {
+
+    private final EmpresaService empresaService;
+
+    @PostMapping
+    public Empresa crear(@RequestBody Empresa empresa) {
+        return empresaService.guardar(empresa);
+    }
+
+    @GetMapping
+    public List<Empresa> listar() {
+        return empresaService.listarTodas();
+    }
+
+    @GetMapping("/{id}")
+    public Empresa obtener(@PathVariable Long id) {
+        return empresaService.obtenerPorId(id);
+    }
+}
