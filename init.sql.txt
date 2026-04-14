@@ -1,13 +1,19 @@
--- ========= EMPRESA =========
-CREATE TABLE empresa (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(150) NOT NULL,
-    ruc VARCHAR(20) UNIQUE,
-    email_contacto VARCHAR(150),
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- =============================================
+-- 1. LIMPIEZA (Opcional: Borra todo para recrear)
+-- =============================================
+DROP TABLE IF EXISTS alerta CASCADE;
+DROP TABLE IF EXISTS configuracion_metrica CASCADE;
+DROP TABLE IF EXISTS lectura_sensor CASCADE;
+DROP TABLE IF EXISTS sensor CASCADE;
+DROP TABLE IF EXISTS suscripcion CASCADE;
+DROP TABLE IF EXISTS usuario CASCADE;
+DROP TABLE IF EXISTS empresa CASCADE;
+DROP TABLE IF EXISTS plan CASCADE;
 
--- ========= PLAN =========
+-- =============================================
+-- 2. TABLAS MAESTRAS (Sin dependencias)
+-- =============================================
+
 CREATE TABLE plan (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
@@ -16,70 +22,69 @@ CREATE TABLE plan (
     descripcion TEXT
 );
 
--- ========= SUSCRIPCION =========
-CREATE TABLE suscripcion (
+CREATE TABLE empresa (
     id SERIAL PRIMARY KEY,
-    empresa_id INTEGER NOT NULL,
-    plan_id INTEGER NOT NULL,
-    fecha_inicio DATE DEFAULT CURRENT_DATE,
-    fecha_fin DATE,
-    estado VARCHAR(20) DEFAULT 'ACTIVA',
-
-    CONSTRAINT fk_suscripcion_empresa
-        FOREIGN KEY (empresa_id) REFERENCES empresa(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_suscripcion_plan
-        FOREIGN KEY (plan_id) REFERENCES plan(id)
+    nombre VARCHAR(150) NOT NULL,
+    ruc VARCHAR(20) UNIQUE,
+    email_contacto VARCHAR(150),
+    plan_id BIGINT,
+    creador_id BIGINT,
+    activa BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========= USUARIO =========
+-- =============================================
+-- 3. USUARIOS Y SEGURIDAD (Auth0 Ready)
+-- =============================================
+
 CREATE TABLE usuario (
     id SERIAL PRIMARY KEY,
-    empresa_id INTEGER NOT NULL,
+    empresa_id INTEGER, -- Puede ser NULL para usuarios HOGAR
     nombre VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    rol VARCHAR(20) DEFAULT 'USER',
+    password_hash TEXT, -- Puede ser opcional si usas Auth0
+    rol VARCHAR(20), -- ADMIN, OPERADOR, VISOR
+    tipo_usuario VARCHAR(20) DEFAULT 'HOGAR',
+    recibir_alertas_email BOOLEAN DEFAULT TRUE,
     activo BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_usuario_empresa
-        FOREIGN KEY (empresa_id) REFERENCES empresa(id)
-        ON DELETE CASCADE
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ========= SENSOR =========
+-- =============================================
+-- 4. SENSORES Y MÉTRICAS
+-- =============================================
+
 CREATE TABLE sensor (
     id SERIAL PRIMARY KEY,
-    empresa_id INTEGER NOT NULL,
+    empresa_id INTEGER,
+    usuario_id INTEGER,
+    device_id VARCHAR(100), 
     tipo VARCHAR(100) NOT NULL, -- AIRE, AGUA, ENERGIA
     modelo VARCHAR(100),
     ubicacion VARCHAR(150),
     latitud DECIMAL(9,6),
     longitud DECIMAL(9,6),
+    es_global BOOLEAN DEFAULT FALSE,
+    altura_instalacion DECIMAL(3,2),
     activo BOOLEAN DEFAULT TRUE,
     fecha_instalacion DATE DEFAULT CURRENT_DATE,
-
-    CONSTRAINT fk_sensor_empresa
-        FOREIGN KEY (empresa_id) REFERENCES empresa(id)
-        ON DELETE CASCADE
+    CONSTRAINT fk_sensor_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id) ON DELETE CASCADE,
+    CONSTRAINT fk_sensor_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
--- ========= LECTURA SENSOR =========
 CREATE TABLE lectura_sensor (
     id BIGSERIAL PRIMARY KEY,
-    sensor_id INTEGER NOT NULL,
-    tipo_metrica VARCHAR(50) NOT NULL, -- PM2.5, CO2, TEMP, HUMEDAD, PH, etc.
+    sensor_id BIGINT NOT NULL,
+    tipo_metrica VARCHAR(50) NOT NULL,
     valor DOUBLE PRECISION NOT NULL,
+    temperatura DOUBLE PRECISION,
+    humedad DOUBLE PRECISION,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_lectura_sensor
-        FOREIGN KEY (sensor_id) REFERENCES sensor(id)
-        ON DELETE CASCADE
+    unidad VARCHAR(20),
+    anomalia_detectada BOOLEAN DEFAULT FALSE,
+    CONSTRAINT fk_sensor_lectura FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
 );
 
--- ========= CONFIGURACION METRICA =========
 CREATE TABLE configuracion_metrica (
     id SERIAL PRIMARY KEY,
     sensor_id INTEGER NOT NULL,
@@ -87,13 +92,27 @@ CREATE TABLE configuracion_metrica (
     rango_min DOUBLE PRECISION,
     rango_max DOUBLE PRECISION,
     unidad VARCHAR(20),
-
-    CONSTRAINT fk_config_metrica_sensor
-        FOREIGN KEY (sensor_id) REFERENCES sensor(id)
-        ON DELETE CASCADE
+    CONSTRAINT fk_config_metrica_sensor FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
 );
 
--- ========= ALERTA =========
+-- =============================================
+-- 5. PAGOS Y ALERTAS
+-- =============================================
+
+CREATE TABLE suscripcion (
+    id SERIAL PRIMARY KEY,
+    empresa_id INTEGER NOT NULL,
+    plan_id INTEGER NOT NULL,
+    payme_order_id VARCHAR(100),
+    estado_pago VARCHAR(20),
+    moneda VARCHAR(20) DEFAULT 'PEN',
+    fecha_inicio DATE DEFAULT CURRENT_DATE,
+    fecha_fin DATE,
+    estado VARCHAR(20) DEFAULT 'ACTIVA',
+    CONSTRAINT fk_suscripcion_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id) ON DELETE CASCADE,
+    CONSTRAINT fk_suscripcion_plan FOREIGN KEY (plan_id) REFERENCES plan(id)
+);
+
 CREATE TABLE alerta (
     id BIGSERIAL PRIMARY KEY,
     sensor_id INTEGER NOT NULL,
@@ -104,22 +123,17 @@ CREATE TABLE alerta (
     nivel VARCHAR(20), -- BAJO, MEDIO, ALTO
     atendida BOOLEAN DEFAULT FALSE,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_alerta_sensor
-        FOREIGN KEY (sensor_id) REFERENCES sensor(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_alerta_lectura
-        FOREIGN KEY (lectura_id) REFERENCES lectura_sensor(id)
-        ON DELETE SET NULL
+    CONSTRAINT fk_alerta_sensor FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE,
+    CONSTRAINT fk_alerta_lectura FOREIGN KEY (lectura_id) REFERENCES lectura_sensor(id) ON DELETE SET NULL
 );
 
+-- =============================================
+-- 6. DATA INICIAL (Seed Data)
+-- =============================================
 
--- INDICES 
+INSERT INTO plan (nombre, precio_mensual, limite_sensores) VALUES 
+('Básico', 45.00, 5),
+('Pro', 169.00, 20),
+('Enterprise', 675.00, 99999);
 
-
-CREATE INDEX idx_sensor_empresa ON sensor(empresa_id);
-CREATE INDEX idx_lectura_sensor ON lectura_sensor(sensor_id);
-CREATE INDEX idx_lectura_fecha ON lectura_sensor(fecha);
-CREATE INDEX idx_alerta_sensor ON alerta(sensor_id);
-CREATE INDEX idx_usuario_empresa ON usuario(empresa_id);
+-- Agrega aquí tus INSERT de sensores que pasaste arriba para tener data de prueba
