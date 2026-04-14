@@ -3,6 +3,7 @@ package com.superinka.ecosensor.backend.servicio;
 import java.util.List;
 
 import com.superinka.ecosensor.backend.modelo.Alerta;
+import com.superinka.ecosensor.backend.modelo.LecturaSensor;
 
 public interface AlertaService {
 
@@ -13,4 +14,9 @@ public interface AlertaService {
     List<Alerta> listarNoAtendidas();
 
     Alerta marcarComoAtendida(Long id);
+    
+    void revisarLectura(LecturaSensor lectura);
+    
+    
+    List<Alerta> listarPorUsuarioEmail(String email);
 }

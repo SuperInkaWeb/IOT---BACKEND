@@ -5,12 +5,15 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "usuario")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Usuario {
 
     @Id
@@ -18,9 +21,17 @@ public class Usuario {
     private Long id;
 
     // 🔹 Relación con Empresa
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "empresa_id", nullable = false)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "empresa_id", nullable = true)
+    @JsonIgnoreProperties({"usuarios", "sensores", "hibernateLazyInitializer", "handler"})
     private Empresa empresa;
+    
+    @Column(name = "recibir_alertas_email")
+    private Boolean recibirAlertasEmail = true;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_usuario")
+    private TipoUsuario tipoUsuario;
 
     @Column(nullable = false, length = 150)
     private String nombre;
@@ -28,12 +39,12 @@ public class Usuario {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "password_hash", columnDefinition = "TEXT")
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Rol rol = Rol.USER;	
+    private Rol rol = Rol.VISOR;	
 
     private Boolean activo = true;
 

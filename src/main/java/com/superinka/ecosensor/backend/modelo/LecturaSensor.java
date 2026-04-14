@@ -23,10 +23,19 @@ public class LecturaSensor {
     private Sensor sensor;
 
     @Column(name = "tipo_metrica", nullable = false, length = 50)
-    private String tipoMetrica;
+    @Enumerated(EnumType.STRING)
+    private TipoMetrica tipoMetrica;
 
+    @Column(length = 20)
+    private String unidad;
+    
+    private Boolean anomaliaDetectada = false;
+    
     @Column(nullable = false)
     private Double valor;   // DOUBLE PRECISION → Double
+    
+    private Double temperatura;
+    private Double humedad;
 
     private LocalDateTime fecha;
 }

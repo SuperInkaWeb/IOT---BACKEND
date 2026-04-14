@@ -3,15 +3,18 @@ package com.superinka.ecosensor.backend.servicio;
 
 import java.util.List;
 
+import com.superinka.ecosensor.backend.dto.SuscripcionResponse;
 import com.superinka.ecosensor.backend.modelo.Suscripcion;
 
 public interface SuscripcionService {
 
-    Suscripcion crearSuscripcion(Long empresaId, Long planId);
+    SuscripcionResponse crearSuscripcion(Long empresaId, Long planId);
 
-    List<Suscripcion> listarPorEmpresa(Long empresaId);
+    List<SuscripcionResponse> listarPorEmpresa(Long empresaId);
 
-    Suscripcion cancelarSuscripcion(Long suscripcionId);
+    SuscripcionResponse cancelarSuscripcion(Long suscripcionId);
 
-    Suscripcion obtenerPorId(Long id);
+    List<SuscripcionResponse> listarPorUsuario(Long usuarioId);
+    
+    SuscripcionResponse obtenerPorId(Long id);
 }
