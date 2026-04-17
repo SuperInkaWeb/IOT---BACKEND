@@ -17,27 +17,14 @@ import org.springframework.security.oauth2.jwt.Jwt;
 public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
-
     @Override
     public Usuario guardar(Usuario usuario) {
-    	    return usuarioRepository.findByEmailWithPlan(usuario.getEmail())
-    	            .map(u -> {
-    	                // Si existe: actualizamos el objeto recuperado (u) con los datos nuevos
-    	                u.setNombre(usuario.getNombre());
-    	                u.setTipoUsuario(usuario.getTipoUsuario());
-    	                u.setRol(usuario.getRol());
-    	                u.setEmpresa(usuario.getEmpresa());
-    	                
-    	                // IMPORTANTE: nos aseguramos de que esté activo al actualizar
-    	                u.setActivo(true); 
-    	                
-    	                return usuarioRepository.save(u); // Ejecuta un UPDATE
-    	            })
-    	            .orElseGet(() -> {
-    	                // Si NO existe: guardamos el nuevo objeto directamente
-    	                return usuarioRepository.save(usuario); // Ejecuta un INSERT
-    	            });
-    	}
+        // IMPORTANTE: Aseguramos que esté activo antes de guardar
+        usuario.setActivo(true); 
+        
+        // Spring Boot detecta automáticamente si es nuevo o existente
+        return usuarioRepository.save(usuario); 
+    }
     
     
     @Override // Añade esto a tu interfaz UsuarioService también
