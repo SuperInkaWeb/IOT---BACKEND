@@ -18,4 +18,6 @@ public interface UsuarioService {
     Usuario obtenerPorId(Long id);
     
     Usuario completarPerfil(UsuarioResponseDTO dto);
+    
+    Usuario obtenerUsuarioActual(org.springframework.security.oauth2.jwt.Jwt jwt);
 }

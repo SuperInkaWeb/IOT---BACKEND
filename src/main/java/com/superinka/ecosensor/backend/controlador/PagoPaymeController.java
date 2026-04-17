@@ -45,17 +45,23 @@ public class PagoPaymeController {
             @AuthenticationPrincipal Jwt jwt) {
 
         Long planId    = Long.valueOf(body.get("planId").toString());
-        Long empresaId = Long.valueOf(body.get("empresaId").toString());
+        Object empresaObj = body.get("empresaId");
+        Long empresaId = (empresaObj != null) ? Long.valueOf(empresaObj.toString()) : null;
+        
+       
 
         Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new RuntimeException("Plan no encontrado"));
 
-        Empresa empresa = empresaRepository.findById(empresaId)
-                .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+        Empresa empresa = null;
+        if (empresaId != null) {
+            empresa = empresaRepository.findById(empresaId).orElse(null);
+        }
 
         // crear suscripción en estado PENDIENTE
         Suscripcion suscripcion = Suscripcion.builder()
                 .empresa(empresa)
+                .usuario(usuarioService.obtenerUsuarioActual(jwt))
                 .plan(plan)
                 .fechaInicio(LocalDate.now())
                 .fechaFin(LocalDate.now().plusMonths(1))

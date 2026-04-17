@@ -11,7 +11,7 @@ import com.superinka.ecosensor.backend.repositorio.UsuarioRepository;
 
 import java.util.List;
 import java.util.Optional;
-
+import org.springframework.security.oauth2.jwt.Jwt;
 @Service
 @RequiredArgsConstructor
 public class UsuarioServiceImpl implements UsuarioService {
@@ -68,7 +68,21 @@ public class UsuarioServiceImpl implements UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    
+    @Override
+    public Usuario obtenerUsuarioActual(Jwt jwt) {
+        // Intentamos sacar el email de varias formas comunes en Auth0
+        String email = jwt.getClaimAsString("email");
+        
+        if (email == null) {
+            // Si no está como 'email', buscamos en el 'subject' o en claims personalizados
+            email = jwt.getSubject(); 
+        }
 
+        // Buscamos en tu repositorio
+        return buscarPorEmail(email)
+                .orElseThrow(() -> new RuntimeException("No se encontró al usuario con identificación: " + jwt.getSubject()));
+    }
 
     @Override
     public List<Usuario> listarPorEmpresa(Long empresaId) {
