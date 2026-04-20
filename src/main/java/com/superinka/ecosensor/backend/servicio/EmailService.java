@@ -196,7 +196,7 @@ public class EmailService {
                     <p style="margin:6px 0 0;color:#166534;font-size:13px;"><strong>Válido hasta:</strong> %s</p>
                   </div>
                   <div style="text-align:center;">
-                    <a href="http://localhost:4200/home" style="background:#3b82f6;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Ir al dashboard →</a>
+                    <a href="https://ecosensor-inka.netlify.app/home" style="background:#3b82f6;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Ir al dashboard →</a>
                   </div>
                 </div>
               </div>

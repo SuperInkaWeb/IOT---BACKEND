@@ -43,13 +43,13 @@ public class UsuarioController {
     public UsuarioResponseDTO completarPerfil(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CompletarPerfilDTO dto) {
+    	
+    	
     	String email = jwt.getClaimAsString("email");
         
         // 🔥 SIN fallback al sub — si no hay email, lanzar error claro
         if (email == null) {
-            throw new RuntimeException(
-                "JWT sin email. Configura la Auth0 Action. Sub=" + jwt.getSubject()
-            );
+        	throw new RuntimeException("JWT sin email");
         }
         
         Usuario u = usuarioService.buscarPorEmail(email)
@@ -80,20 +80,9 @@ public class UsuarioController {
         }
         Usuario usuarioGuardado = usuarioService.guardar(u);
 
-        // 🔥 3. EL DISPARADOR DE BREVO
-        // Si el usuario aceptó recibir alertas en el switch del frontend
         if (dto.isRecibirAlertasEmail()) {
-            try {
-                // Mandamos el correo de bienvenida usando la clave que pusimos en properties
-                emailService.enviarBienvenida(
-                    usuarioGuardado.getEmail(), 
-                    usuarioGuardado.getNombre(), 
-                    u.getTipoUsuario().toString()
-                );
-            } catch (Exception e) {
-                // Logeamos el error pero no bloqueamos el registro del usuario
-                System.err.println("Error enviando bienvenida: " + e.getMessage());
-            }
+            // Al ser @Async, el controller sigue de largo sin esperar a Brevo
+            emailService.enviarBienvenida(usuarioGuardado.getEmail(), usuarioGuardado.getNombre(), u.getTipoUsuario().toString());
         }
 
         return new UsuarioResponseDTO(usuarioGuardado);
