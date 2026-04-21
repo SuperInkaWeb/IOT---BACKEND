@@ -13,7 +13,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	 @Query("SELECT u FROM Usuario u " +
 	           " LEFT JOIN FETCH u.empresa e " +
-	           " LEFT JOIN FETCH e.plan  " +
+	           " LEFT JOIN FETCH e.plan p " +
 	           "WHERE u.email = :email")
 	    Optional<Usuario> findByEmailWithPlan(@Param("email") String email);
 
