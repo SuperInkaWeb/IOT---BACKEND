@@ -20,7 +20,7 @@ public class EmpresaController {
     private final EmpresaService empresaService;
 
     
-    @PostMapping
+    @PostMapping("/registro")
     public Empresa crear(@RequestBody EmpresaRequest request) {
         return empresaService.guardar(request);
     }
