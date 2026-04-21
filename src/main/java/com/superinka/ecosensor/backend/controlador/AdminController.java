@@ -3,6 +3,7 @@ package com.superinka.ecosensor.backend.controlador;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import com.superinka.ecosensor.backend.repositorio.*;
 import com.superinka.ecosensor.backend.modelo.*;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 @CrossOrigin(origins = {"http://localhost:4200", "https://*.netlify.app"}, allowCredentials = "true")public class AdminController {
 
     private final UsuarioRepository usuarioRepository;

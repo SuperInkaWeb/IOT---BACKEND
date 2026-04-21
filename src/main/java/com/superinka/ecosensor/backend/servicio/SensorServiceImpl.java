@@ -109,37 +109,38 @@ public class SensorServiceImpl implements SensorService {
     @Override
     public List<SensorDTO> obtenerMisSensores(Jwt jwt) {
 
-    	String email = jwt.getClaimAsString("email");
-    	if (email == null) email = jwt.getSubject();
-
+    	String email = jwt.getClaimAsString("https://ecosensor-api/email");
+    	
+    	if (email == null || email.isBlank()) email = jwt.getClaimAsString("email");
+        if (email == null || email.isBlank()) email = jwt.getSubject();
+        
+        
     	Usuario usuario = usuarioRepository.findByEmailWithPlan(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
                 
 
         List<Sensor> sensores;
 
-        if (usuario.getTipoUsuario().name().equals("EMPRESA")) {
         	
-        	if (usuario.getEmpresa() == null) {
-                // Opción A: Devolver lista vacía si no tiene empresa
-                return Collections.emptyList();
-        	}
-            sensores = sensorRepository.findByEmpresaId(usuario.getEmpresa().getId());
+        	// Si es empresa, buscamos por el ID de la empresa vinculada
+            if (usuario.getTipoUsuario() != null && "EMPRESA".equals(usuario.getTipoUsuario().name()) && usuario.getEmpresa() != null) {
+                sensores = sensorRepository.findByEmpresaId(usuario.getEmpresa().getId());
+            } else {
+                // MEJORA SENIOR: Buscamos por Email para evitar desajustes de ID numérico entre sesiones
+                sensores = sensorRepository.findByUsuarioEmail(email);
+            }
             
             
-            
-        } else {
-            sensores = sensorRepository.findByUsuarioId(usuario.getId());
-        }
+        
         return sensores.stream()
         	    .map(s -> SensorDTO.builder()
         	            .id(s.getId())
+        	            .deviceId(s.getDeviceId())
         	            .tipo(s.getTipo())
         	            .modelo(s.getModelo())
         	            .ubicacion(s.getUbicacion())
         	            .activo(s.getActivo())
         	            .esGlobal(s.getEsGlobal())
-        	            .alturaInstalacion((java.math.BigDecimal) s.getAlturaInstalacion())
                         .latitud((java.math.BigDecimal) s.getLatitud())
                         .longitud((java.math.BigDecimal) s.getLongitud())
                         .build())
