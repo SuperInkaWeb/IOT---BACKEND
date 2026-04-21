@@ -44,6 +44,7 @@ public class SpringSecurityConfig {
     	converter.setJwtGrantedAuthoritiesConverter(jwtAuthConverter);
     	
     	
+    	
         http
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         	

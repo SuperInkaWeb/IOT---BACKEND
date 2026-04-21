@@ -20,14 +20,14 @@ import com.superinka.ecosensor.backend.repositorio.LecturaSensorRepository;
 import com.superinka.ecosensor.backend.repositorio.SensorRepository;
 import com.superinka.ecosensor.backend.repositorio.UsuarioRepository;
 
-import java.math.BigDecimal;
+
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = false)
 public class SensorServiceImpl implements SensorService {
 
     private final SensorRepository sensorRepository;
@@ -38,13 +38,11 @@ public class SensorServiceImpl implements SensorService {
    
 
     @Override
-    @Transactional(readOnly = true)
     public List<Sensor> listarPorEmpresa(Long empresaId) {
         return sensorRepository.findByEmpresaId(empresaId);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Sensor obtenerPorId(Long id) {
         return sensorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sensor no encontrado"));
@@ -63,57 +61,44 @@ public class SensorServiceImpl implements SensorService {
     	    throw new RuntimeException("deviceId es obligatorio");
     	}
 
-        sensorRepository.findByDeviceId(sensor.getDeviceId()).ifPresent(s -> {
-            throw new RuntimeException("deviceId ya registrado: " + sensor.getDeviceId());
-        });
-
-        String email = jwt.getClaimAsString("email");
-        if (email == null || email.isBlank()) {
-            email = jwt.getSubject(); 
-        } 
-        
-        if (email == null) {
-            throw new RuntimeException("No se pudo extraer la identidad del usuario del token JWT");
+    	
+    	String identity = jwt.getClaimAsString("https://ecosensor-api/email");
+    	if (identity == null || identity.isEmpty()) {
+            identity = jwt.getClaimAsString("email");
+        }
+        if (identity == null || identity.isEmpty()) {
+            identity = jwt.getSubject(); // auth0|...
         }
         
-        Usuario usuario = usuarioRepository.findByEmailWithPlan(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado para email: " + email));
- 
+        final String finalIdentity = identity; // Para el lambda
+        Usuario usuario = usuarioRepository.findByEmailWithPlan(finalIdentity)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + finalIdentity));
+        
+        
+      
         sensor.setFechaInstalacion(LocalDate.now());
         sensor.setActivo(true);
-        
-        if (sensor.getLatitud() != null && sensor.getLatitud().compareTo(BigDecimal.ZERO) == 0) {
-            sensor.setLatitud(null);
-        }
-        if (sensor.getLongitud() != null && sensor.getLongitud().compareTo(BigDecimal.ZERO) == 0) {
-            sensor.setLongitud(null);
-        }
+        sensor.setUsuario(usuario);
 
-        // CASO EMPRESA
-        if ("EMPRESA".equals(usuario.getTipoUsuario().name())) {
+        if (usuario.getTipoUsuario() != null && "EMPRESA".equals(usuario.getTipoUsuario().name())) {
             Empresa empresa = usuario.getEmpresa();
-            if (empresa == null) throw new RuntimeException("El usuario no tiene empresa asociada");
-
-            Long sensoresActuales = sensorRepository
-            	    .countByEmpresaIdAndActivoTrue(empresa.getId());
-
-            int limitePlan = (empresa.getPlan() != null) ? empresa.getPlan().getLimiteSensores() : 3;
             
-            
-            if (sensoresActuales >= limitePlan) {
-                throw new RuntimeException(
-                    "Límite de sensores alcanzado (" + limitePlan + "). " +
-                    "Actualiza tu plan para agregar más."
-                );
+            if (empresa != null) {
+                // Validamos límites solo si hay empresa vinculada
+                Long sensoresActuales = sensorRepository.countByEmpresaIdAndActivoTrue(empresa.getId());
+                int limitePlan = (empresa.getPlan() != null) ? empresa.getPlan().getLimiteSensores() : 3;
+
+                if (sensoresActuales >= limitePlan) {
+                    throw new RuntimeException("Límite de sensores alcanzado para tu plan actual.");
+                }
+                sensor.setEmpresa(empresa);
+            } else {
+                // Si dice ser EMPRESA pero no tiene empresa_id, no bloqueamos el sistema, 
+                // solo lo guardamos como sensor personal para no romper el flujo.
+                sensor.setEmpresa(null);
             }
-            
-
-            sensor.setEmpresa(empresa);
-            sensor.setUsuario(usuario);
-
         } else {
-            // CASO HOGAR
-            sensor.setUsuario(usuario);
+            // Caso HOGAR
             sensor.setEmpresa(null);
         }
 
@@ -122,51 +107,53 @@ public class SensorServiceImpl implements SensorService {
     
     /////
     @Override
-    @Transactional(readOnly = true)
     public List<SensorDTO> obtenerMisSensores(Jwt jwt) {
 
     	String email = jwt.getClaimAsString("email");
-    	 if (email == null || email.isBlank()) email = jwt.getSubject();
+    	if (email == null) email = jwt.getSubject();
 
     	Usuario usuario = usuarioRepository.findByEmailWithPlan(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
                 
 
         List<Sensor> sensores;
-        if (usuario.getTipoUsuario() != null
-                && "EMPRESA".equals(usuario.getTipoUsuario().name())
-                && usuario.getEmpresa() != null) {
+
+        if (usuario.getTipoUsuario().name().equals("EMPRESA")) {
+        	
+        	if (usuario.getEmpresa() == null) {
+                // Opción A: Devolver lista vacía si no tiene empresa
+                return Collections.emptyList();
+        	}
             sensores = sensorRepository.findByEmpresaId(usuario.getEmpresa().getId());
+            
+            
+            
         } else {
             sensores = sensorRepository.findByUsuarioId(usuario.getId());
         }
         return sensores.stream()
         	    .map(s -> SensorDTO.builder()
         	            .id(s.getId())
-        	            .deviceId(s.getDeviceId())
         	            .tipo(s.getTipo())
         	            .modelo(s.getModelo())
         	            .ubicacion(s.getUbicacion())
-        	            .latitud(s.getLatitud())
-                        .longitud(s.getLongitud())
         	            .activo(s.getActivo())
         	            .esGlobal(s.getEsGlobal())
-        	            .alturaInstalacion(s.getAlturaInstalacion())
+        	            .alturaInstalacion((java.math.BigDecimal) s.getAlturaInstalacion())
+                        .latitud((java.math.BigDecimal) s.getLatitud())
+                        .longitud((java.math.BigDecimal) s.getLongitud())
                         .build())
         	    .toList();
     }
     
     @Override
-    @Transactional(readOnly = true)
     public DashboardResponse obtenerDashboardPorUbicacion(Long usuarioId, String ubicacion) {
         
         // 1. Buscamos sensores específicos de la zona (ej: Agua en Cocina)
         // 2. BUSCAMOS TAMBIÉN los globales (ej: Energía en Tablero)
         List<Sensor> todosLosSensores = sensorRepository.findByUsuarioId(usuarioId)
             .stream()
-            .filter(s -> s.getUbicacion() != null
-            && (s.getUbicacion().equalsIgnoreCase(ubicacion)
-                || Boolean.TRUE.equals(s.getEsGlobal())))	
+            .filter(s -> s.getUbicacion().equalsIgnoreCase(ubicacion) || s.getEsGlobal())
             .toList();
         
         Double pm25 = 0.0, ph = 7.0, energia = 0.0;
@@ -184,7 +171,7 @@ public class SensorServiceImpl implements SensorService {
         
         return DashboardResponse.builder()
             .promedioPM25(pm25)
-            .promedioPH(ph)	
+            .promedioPH(ph)
             .consumoEnergia(energia)
             .build();
     }
