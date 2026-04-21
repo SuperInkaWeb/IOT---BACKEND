@@ -62,6 +62,6 @@ public class Empresa {
     private List<Sensor> sensores;
     
     @OneToMany(mappedBy = "empresa", fetch = FetchType.EAGER)
-    @JsonIgnoreProperties({"empresa", "hibernateLazyInitializer"})
+    @JsonIgnore
     private List<Suscripcion> suscripciones = new ArrayList<>();
 }

@@ -124,7 +124,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
 		if (usuarioId == null) {
             throw new IllegalArgumentException("El usuarioId no puede ser null");
         }
-        return suscripcionRepository.findByEmpresaCreadorId(usuarioId)
+        return suscripcionRepository.findByUsuarioId(usuarioId)
                 .stream()
                 .map(this::toResponse)
                 .toList();

@@ -13,5 +13,5 @@ public interface SuscripcionRepository extends JpaRepository<Suscripcion, Long> 
 
     Long countByEstado(String estado);
     
-    List<Suscripcion> findByEmpresaCreadorId(Long usuarioId);
+    List<Suscripcion> findByUsuarioId(Long usuarioId);
 }

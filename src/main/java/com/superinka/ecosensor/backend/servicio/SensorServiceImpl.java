@@ -27,7 +27,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = false)
+@Transactional
 public class SensorServiceImpl implements SensorService {
 
     private final SensorRepository sensorRepository;
@@ -38,11 +38,13 @@ public class SensorServiceImpl implements SensorService {
    
 
     @Override
+    @Transactional(readOnly = true)
     public List<Sensor> listarPorEmpresa(Long empresaId) {
         return sensorRepository.findByEmpresaId(empresaId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Sensor obtenerPorId(Long id) {
         return sensorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sensor no encontrado"));
@@ -75,22 +77,15 @@ public class SensorServiceImpl implements SensorService {
         Usuario usuario = usuarioRepository.findByEmailWithPlan(identity)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         
-        
-        if (usuario.getEmpresa() != null) {
-            // Esto obliga a Hibernate a traer los datos del Plan de la BD AHORA
-            Empresa emp = usuario.getEmpresa();
-            if (emp.getPlan() != null) {
-                emp.getPlan().getLimiteSensores(); // Acceso preventivo para inicializar
-            }
-        }
+      
         
         sensor.setFechaInstalacion(LocalDate.now());
         sensor.setActivo(true);
 
-        // 🔥 CASO EMPRESA
-        if (usuario.getTipoUsuario().name().equals("EMPRESA")) {
-
+        // CASO EMPRESA
+        if ("EMPRESA".equals(usuario.getTipoUsuario().name())) {
             Empresa empresa = usuario.getEmpresa();
+            if (empresa == null) throw new RuntimeException("El usuario no tiene empresa asociada");
 
             Long sensoresActuales = sensorRepository
             	    .countByEmpresaIdAndActivoTrue(empresa.getId());
@@ -108,7 +103,7 @@ public class SensorServiceImpl implements SensorService {
             sensor.setUsuario(usuario);
 
         } else {
-            // 🏠 CASO HOGAR
+            // CASO HOGAR
             sensor.setUsuario(usuario);
             sensor.setEmpresa(null);
         }
@@ -118,6 +113,7 @@ public class SensorServiceImpl implements SensorService {
     
     /////
     @Override
+    @Transactional(readOnly = true)
     public List<SensorDTO> obtenerMisSensores(Jwt jwt) {
 
     	String email = jwt.getClaimAsString("email");
@@ -128,31 +124,25 @@ public class SensorServiceImpl implements SensorService {
                 
 
         List<Sensor> sensores;
-
-        if (usuario.getTipoUsuario().name().equals("EMPRESA")) {
-        	
-        	if (usuario.getEmpresa() == null) {
-                // Opción A: Devolver lista vacía si no tiene empresa
-                return Collections.emptyList();
-        	}
+        if ("EMPRESA".equals(usuario.getTipoUsuario().name())) {
+            if (usuario.getEmpresa() == null) return Collections.emptyList();
             sensores = sensorRepository.findByEmpresaId(usuario.getEmpresa().getId());
-            
-            
-            
+        
         } else {
             sensores = sensorRepository.findByUsuarioId(usuario.getId());
         }
         return sensores.stream()
         	    .map(s -> SensorDTO.builder()
         	            .id(s.getId())
+        	            .deviceId(s.getDeviceId())
         	            .tipo(s.getTipo())
         	            .modelo(s.getModelo())
         	            .ubicacion(s.getUbicacion())
+        	            .latitud(s.getLatitud())
+                        .longitud(s.getLongitud())
         	            .activo(s.getActivo())
         	            .esGlobal(s.getEsGlobal())
-        	            .alturaInstalacion((java.math.BigDecimal) s.getAlturaInstalacion())
-                        .latitud((java.math.BigDecimal) s.getLatitud())
-                        .longitud((java.math.BigDecimal) s.getLongitud())
+        	            .alturaInstalacion(s.getAlturaInstalacion())
                         .build())
         	    .toList();
     }
