@@ -26,7 +26,6 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final EmpresaService empresaService;
     private final EmailService emailService;
-    private final com.superinka.ecosensor.backend.servicio.PlanService planService; // Inyectamos tu PlanService
 
     @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponseDTO> perfil(@AuthenticationPrincipal Jwt jwt) {
@@ -51,62 +50,45 @@ public class UsuarioController {
         	throw new RuntimeException("JWT sin email");
         }
         
+
+        // Buscar existente o crear nuevo
         Usuario u = usuarioService.buscarPorEmail(email)
                 .orElse(Usuario.builder()
                         .email(email)
                         .fechaCreacion(LocalDateTime.now())
                         .passwordHash("AUTH0_USER")
-                        .activo(true) // Importante: que nazca activo
+                        .activo(true)
                         .build());
-
+ 
         u.setNombre(dto.getNombre());
         u.setTipoUsuario(dto.getTipoUsuario());
-
+        u.setActivo(true);
+ 
         if (email.equalsIgnoreCase("admin@ecosensor.com")) {
+            // Admin del sistema — sin empresa
             u.setRol(Rol.ADMIN);
             u.setEmpresa(null);
-        } 
-        // 2. Si no es el dueño, aplicar lógica normal
-        else if (dto.getTipoUsuario() == TipoUsuario.EMPRESA) {
-            u.setRol(Rol.VISOR); 
-            
-            
-            
-            if (dto.getEmpresaId() == null && dto.getNombre() != null && !dto.getNombre().isEmpty()) {
-            	
-            	u = usuarioService.guardar(u);
-
-                
-                com.superinka.ecosensor.backend.modelo.Plan planBase = planService.obtenerPorId(1L);
-                
-                Empresa nuevaEmpresa = Empresa.builder()
-                        .nombre(dto.getNombre())
-                        .activa(true)
-                        .creador(u) // Vinculamos quién la creó
-                        .plan(planBase) // <--- CRÍTICO: Asigna un Plan ID por defecto
-                        .build();
-                
-                // Guardamos la empresa primero para que genere ID
-                Empresa empresaGuardada = empresaService.guardar(nuevaEmpresa); 
-                u.setEmpresa(empresaGuardada);
-                
+        } else {
+            // Todos los demás usuarios (EMPRESA u HOGAR) son ADMIN de su propio espacio
+            // La empresa se vincula después mediante EmpresaController
+            u.setRol(Rol.VISOR);
+        }
+ 
+        Usuario guardado = usuarioService.guardar(u);
+ 
+        // Email de bienvenida — no debe bloquear el registro si falla
+        try {
+            if (dto.isRecibirAlertasEmail()) {
+                emailService.enviarBienvenida(
+                    guardado.getEmail(),
+                    guardado.getNombre(),
+                    guardado.getTipoUsuario() != null ? guardado.getTipoUsuario().toString() : "HOGAR"
+                );
             }
-                else if (dto.getEmpresaId() != null) {
-                    // Si ya seleccionó una empresa existente
-                    u.setEmpresa(empresaService.obtenerPorId(dto.getEmpresaId()));
-                }
-          
-        } else {	
-            u.setRol(Rol.VISOR); // Usuario de hogar o visor estándar
-            u.setEmpresa(null);
+        } catch (Exception ignored) {
+            System.err.println("Email de bienvenida falló (no crítico)");
         }
-        Usuario usuarioFinal = usuarioService.guardar(u);
-
-        if (dto.isRecibirAlertasEmail()) {
-            emailService.enviarBienvenida(usuarioFinal.getEmail(), usuarioFinal.getNombre(), usuarioFinal.getTipoUsuario().toString());
-        }
-
-        return new UsuarioResponseDTO(usuarioFinal);
-        }
-    
+ 
+        return new UsuarioResponseDTO(guardado);
+    }
 }
