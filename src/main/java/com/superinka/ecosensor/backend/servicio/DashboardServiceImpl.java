@@ -98,17 +98,15 @@ public class DashboardServiceImpl implements DashboardService {
     public List<SensorResumenDTO> listarSensores(Long empresaId) {
     	List<Sensor> sensores = sensorRepository.findByEmpresaId(empresaId);
 
-        System.out.println("SENSORES ENCONTRADOS: " + sensores.size());
 
-        sensores.forEach(s -> {
-            System.out.println("Sensor: " + s.getDeviceId() + " | Empresa: " + (s.getEmpresa() != null ? s.getEmpresa().getId() : "NULL"));
-        });
-
+        
         return sensores.stream()
                 .map(s -> SensorResumenDTO.builder()
                         .id(s.getId())
                         .deviceId(s.getDeviceId())
                         .ubicacion(s.getUbicacion())
+                        .tipo(s.getTipo())
+                        .activo(s.getActivo())
                         .build()
                 )
                 .toList();
@@ -211,19 +209,21 @@ public class DashboardServiceImpl implements DashboardService {
     		            .estadoGeneral(estado)
     		            .build();
     		}
+    
+    
     @Override
     public List<SensorResumenDTO> listarSensoresPorUsuario(String email) {
-        // 1. Buscamos los sensores en el repositorio que pertenezcan a ese usuario
-        // Nota: Necesitas tener el método findByUsuarioEmail en tu SensorRepository
+        
         List<Sensor> sensores = sensorRepository.findByUsuarioEmail(email.toLowerCase().trim());
 
-        System.out.println("🏠 SENSORES DE HOGAR ENCONTRADOS PARA " + email + ": " + sensores.size());
 
         return sensores.stream()
                 .map(s -> SensorResumenDTO.builder()
                         .id(s.getId())
                         .deviceId(s.getDeviceId())
                         .ubicacion(s.getUbicacion())
+                        .tipo(s.getTipo())
+                        .activo(s.getActivo())
                         .build()
                 )
                 .toList();
