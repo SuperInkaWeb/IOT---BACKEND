@@ -61,6 +61,7 @@ public class Empresa {
     @JsonIgnore
     private List<Sensor> sensores;
     
+    @Builder.Default
     @OneToMany(mappedBy = "empresa", fetch = FetchType.EAGER)
     @JsonIgnore
     private List<Suscripcion> suscripciones = new ArrayList<>();
