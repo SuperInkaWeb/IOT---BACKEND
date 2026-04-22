@@ -16,7 +16,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-@CrossOrigin(origins = {"http://localhost:4200", "https://*.netlify.app"}, allowCredentials = "true")public class AdminController {
+@CrossOrigin(origins = {"http://localhost:4200", "https://*.netlify.app"}, allowCredentials = "true")
+public class AdminController {
 
     private final UsuarioRepository usuarioRepository;
     private final EmpresaRepository empresaRepository;
@@ -39,9 +40,35 @@ import java.util.stream.Collectors;
         kpis.put("sensoresActivos",  sensorRepository.countByActivoTrue());
         kpis.put("totalAlertas",     alertaRepository.count());
         kpis.put("alertasSinAtender", alertaRepository.countByAtendida(false));
-        kpis.put("suscripcionesActivas",
-                suscripcionRepository.countByEstado("ACTIVA"));
-
+        
+        long suscripcionesActivas = suscripcionRepository.countByEstado("ACTIVA");
+        long suscripcionesCanceladas = suscripcionRepository.countByEstado("CANCELADA");
+        kpis.put("suscripcionesActivas",    suscripcionesActivas);
+        kpis.put("suscripcionesCanceladas", suscripcionesCanceladas);
+        
+        double mrr = suscripcionRepository.findAll()
+                .stream()
+                .filter(s -> "ACTIVA".equals(s.getEstado()))
+                .mapToDouble(s -> s.getPlan() != null && s.getPlan().getPrecioMensual() != null
+                        ? s.getPlan().getPrecioMensual().doubleValue()
+                        : 0.0)
+                .sum();
+        kpis.put("mrrSoles", Math.round(mrr));
+ 
+        // Churn rate aproximado (canceladas / total históricas)
+        long totalHistoricas = suscripcionesActivas + suscripcionesCanceladas;
+        double churnRate = totalHistoricas > 0
+                ? Math.round((suscripcionesCanceladas * 100.0 / totalHistoricas) * 10.0) / 10.0
+                : 0.0;
+        kpis.put("churnRate", churnRate);
+ 
+        // 📊 Empresas activas vs inactivas
+        long empresasActivas   = empresaRepository.findAll().stream().filter(e -> Boolean.TRUE.equals(e.getActiva())).count();
+        long empresasInactivas = empresaRepository.count() - empresasActivas;
+        kpis.put("empresasActivas",   empresasActivas);
+        kpis.put("empresasInactivas", empresasInactivas);
+        
+        
         return ResponseEntity.ok(kpis);
     }
 
@@ -58,6 +85,7 @@ import java.util.stream.Collectors;
                     m.put("rol",         u.getRol() != null ? u.getRol().name() : null);
                     m.put("tipoUsuario", u.getTipoUsuario() != null ? u.getTipoUsuario().name() : null);
                     m.put("empresa",     u.getEmpresa() != null ? u.getEmpresa().getNombre() : null);
+                    m.put("empresaId",   u.getEmpresa()     != null ? u.getEmpresa().getId()     : null);
                     m.put("activo",      u.getActivo());
                     m.put("fechaCreacion", u.getFechaCreacion());
                     return m;
@@ -67,6 +95,33 @@ import java.util.stream.Collectors;
         return ResponseEntity.ok(lista);
     }
 
+    
+    // Devuelve el perfil de un usuario para que el admin lo visualice.
+    // NO cambia el JWT ni hace login real — solo lectura auditada.
+    @GetMapping("/usuarios/{id}/perfil-vista")
+    public ResponseEntity<Map<String, Object>> verPerfilUsuario(@PathVariable Long id) {
+        return usuarioRepository.findById(id).map(u -> {
+            Map<String, Object> vista = new LinkedHashMap<>();
+            vista.put("id",           u.getId());
+            vista.put("nombre",       u.getNombre());
+            vista.put("email",        u.getEmail());
+            vista.put("rol",          u.getRol()         != null ? u.getRol().name()         : null);
+            vista.put("tipoUsuario",  u.getTipoUsuario() != null ? u.getTipoUsuario().name() : null);
+            vista.put("activo",       u.getActivo());
+            vista.put("empresa",      u.getEmpresa()     != null ? u.getEmpresa().getNombre() : null);
+            vista.put("empresaId",    u.getEmpresa()     != null ? u.getEmpresa().getId()     : null);
+            vista.put("planNombre",   u.getEmpresa()     != null && u.getEmpresa().getPlan() != null
+                    ? u.getEmpresa().getPlan().getNombre() : "Sin plan");
+            vista.put("totalSensores", u.getEmpresa() != null
+                    ? sensorRepository.countByEmpresaId(u.getEmpresa().getId()) : 0);
+            // Audit log en consola (en prod usar tabla de auditoría)
+            System.out.println("[ADMIN AUDIT] Vista de perfil usuario ID=" + id + " — " + LocalDateTime.now());
+            return ResponseEntity.ok(vista);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+    
+    
+    
     // ── TODAS LAS EMPRESAS ────────────────────────────────────────
     @GetMapping("/empresas")
     public ResponseEntity<List<Map<String, Object>>> getEmpresas() {
@@ -80,6 +135,7 @@ import java.util.stream.Collectors;
                     m.put("email",         e.getEmailContacto());
                     m.put("activa",        e.getActiva());
                     m.put("plan",          e.getPlan() != null ? e.getPlan().getNombre() : null);
+                    m.put("precioPlan",    e.getPlan() != null ? e.getPlan().getPrecioMensual() : null);
                     m.put("totalSensores", sensorRepository.countByEmpresaId(e.getId()));
                     m.put("fechaCreacion", e.getFechaCreacion());
                     return m;
@@ -148,6 +204,7 @@ import java.util.stream.Collectors;
     }
 
     // ── DESACTIVAR USUARIO ────────────────────────────────────────
+    @Transactional
     @PutMapping("/usuarios/{id}/desactivar")
     public ResponseEntity<String> desactivarUsuario(@PathVariable Long id) {
         usuarioRepository.findById(id).ifPresent(u -> {
@@ -157,7 +214,7 @@ import java.util.stream.Collectors;
         return ResponseEntity.ok("Usuario desactivado");
     }
     
-    
+    @Transactional
     @PutMapping("/usuarios/{id}/activar")
     public ResponseEntity<String> activarUsuario(@PathVariable Long id) {
         usuarioRepository.findById(id).ifPresent(u -> {
@@ -168,6 +225,7 @@ import java.util.stream.Collectors;
     }
 
     // ── ACTIVAR/DESACTIVAR EMPRESA ────────────────────────────────
+    @Transactional
     @PutMapping("/empresas/{id}/desactivar")
     public ResponseEntity<String> desactivarEmpresa(@PathVariable Long id) {
         empresaRepository.findById(id).ifPresent(e -> {
@@ -187,6 +245,7 @@ import java.util.stream.Collectors;
     }
 
     // ── SUSPENDER SUSCRIPCIÓN ─────────────────────────────────────
+    @Transactional
     @PutMapping("/suscripciones/{id}/suspender")
     public ResponseEntity<String> suspenderSuscripcion(@PathVariable Long id) {
         suscripcionRepository.findById(id).ifPresent(s -> {
@@ -197,6 +256,8 @@ import java.util.stream.Collectors;
         return ResponseEntity.ok("Suscripción suspendida");
     }
 
+    
+    @Transactional
     @PutMapping("/suscripciones/{id}/activar")
     public ResponseEntity<String> activarSuscripcion(@PathVariable Long id) {
         suscripcionRepository.findById(id).ifPresent(s -> {

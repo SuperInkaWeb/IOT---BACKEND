@@ -1,10 +1,12 @@
 package com.superinka.ecosensor.backend.controlador;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
@@ -27,6 +29,7 @@ public class PagoPaymeController {
     private final EmpresaRepository empresaRepository;
     private final PlanRepository planRepository;
     private final UsuarioService usuarioService;
+    private final UsuarioRepository usuariorepository;
 
     // 🔥 estas credenciales las da Pay-me al registrarte
     @Value("${payme.merchant-id}")
@@ -109,16 +112,14 @@ public class PagoPaymeController {
 
     // ── PASO 2: Pay-me llama esto cuando confirma el pago ─────────
     @PostMapping("/webhook")
+    @Transactional
     public ResponseEntity<String> webhook(@RequestBody Map<String, Object> body) {
 
-        String orderId = body.get("orderId") != null
-                ? body.get("orderId").toString() : null;
-        String estado  = body.get("estado") != null
-                ? body.get("estado").toString() : null;
-        String paymeTxId = body.get("transactionId") != null
-                ? body.get("transactionId").toString() : null;
+    	String orderId = String.valueOf(body.getOrDefault("orderId", ""));
+        String estado = String.valueOf(body.getOrDefault("estado", ""));
+        String paymeTxId = String.valueOf(body.getOrDefault("transactionId", ""));
 
-        if (orderId == null || estado == null) {
+        if (orderId.isEmpty() || estado.isEmpty()) {
             return ResponseEntity.badRequest().body("Datos incompletos");
         }
 
@@ -130,18 +131,45 @@ public class PagoPaymeController {
         if (suscripcion == null) {
             return ResponseEntity.notFound().build();
         }
+        
+        if (orderId.isEmpty() || estado.isEmpty()) {
+            return ResponseEntity.badRequest().body("Datos incompletos");
+        }
+        
+        String estadoUpper = estado.trim().toUpperCase();
 
-        if ("APPROVED".equals(estado) || "PAGADO".equals(estado)) {
-            // 🔥 pago confirmado → activar suscripción
+        if ("APPROVED".equals(estadoUpper) || "PAGADO".equals(estadoUpper)) {
+            
+            // --- LOGICA DE NEGOCIO: ACTIVACIÓN ---
             suscripcion.setEstado("ACTIVA");
             suscripcion.setEstadoPago("PAGADO");
             suscripcion.setPaymeOrderId(paymeTxId);
             suscripcion.setFechaInicio(LocalDate.now());
             suscripcion.setFechaFin(LocalDate.now().plusMonths(1));
+
+            // --- EL MOMENTO DE LA VERDAD: UPGRADE ---
+            Plan nuevoPlan = suscripcion.getPlan();
+            
+            if (suscripcion.getEmpresa() != null) {
+                // CASO EMPRESA: Actualizamos el plan de la organización
+                Empresa empresa = suscripcion.getEmpresa();
+                empresa.setPlan(nuevoPlan);
+                empresaRepository.save(empresa);
+                System.out.println("Upgrade exitoso: Empresa " + empresa.getNombre() + " ahora es " + nuevoPlan.getNombre());
+            } else if (suscripcion.getUsuario() != null) {
+                // CASO HOGAR: Actualizamos el plan directamente al usuario
+                Usuario usuario = suscripcion.getUsuario();
+                usuario.setPlan(nuevoPlan); // Asegúrate de tener este campo en tu entidad Usuario
+                usuariorepository.save(usuario);
+                System.out.println("Upgrade exitoso: Usuario " + usuario.getEmail() + " ahora es " + nuevoPlan.getNombre());
+            }
+            
+            
         } else {
             // pago rechazado o cancelado
             suscripcion.setEstado("CANCELADA");
             suscripcion.setEstadoPago("RECHAZADO");
+            System.out.println	("Pago rechazado para la orden: " + orderId);
         }
 
         suscripcionRepository.save(suscripcion);

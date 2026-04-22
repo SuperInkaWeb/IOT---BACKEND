@@ -21,6 +21,8 @@ public interface SensorRepository extends JpaRepository<Sensor, Long> {
 
     Long countByEmpresaIdAndActivoTrue(Long empresaId);
     
+    Long countByUsuarioIdAndActivoTrue(Long usuarioId);
+    
     Optional<Sensor> findByDeviceId(String deviceId);
     
     List<Sensor> findByUsuarioIdAndUbicacion(Long usuarioId, String ubicacion);

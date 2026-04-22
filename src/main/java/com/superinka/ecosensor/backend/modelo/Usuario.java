@@ -42,6 +42,12 @@ public class Usuario {
     @Column(name = "password_hash", columnDefinition = "TEXT")
     private String passwordHash;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "plan_id", nullable = true) // <--- ESTO ES VITAL
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Plan plan;
+    
+    
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Rol rol = Rol.VISOR;	

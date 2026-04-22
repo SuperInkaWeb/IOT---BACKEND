@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.superinka.ecosensor.backend.dto.DashboardResponse;
 import com.superinka.ecosensor.backend.dto.SensorDTO;
 import com.superinka.ecosensor.backend.modelo.Empresa;
-
+import com.superinka.ecosensor.backend.modelo.Plan;
 import com.superinka.ecosensor.backend.modelo.Sensor;
 import com.superinka.ecosensor.backend.modelo.TipoMetrica;
 import com.superinka.ecosensor.backend.modelo.Usuario;
@@ -50,61 +50,48 @@ public class SensorServiceImpl implements SensorService {
     
     @Override
     public Sensor crearSensorSeguro(Sensor sensor, Jwt jwt) {
-    	
-    	
-    	
-    	if (sensor.getTipo() == null) {
-    	    throw new RuntimeException("Tipo de sensor es obligatorio");
-    	}
-    	
-    	if (sensor.getDeviceId() == null || sensor.getDeviceId().isEmpty()) {
-    	    throw new RuntimeException("deviceId es obligatorio");
-    	}
+        // 1. Validaciones básicas de entrada
+        if (sensor.getTipo() == null) throw new RuntimeException("Tipo de sensor es obligatorio");
+        if (sensor.getDeviceId() == null || sensor.getDeviceId().isEmpty()) throw new RuntimeException("deviceId es obligatorio");
 
-    	
-    	String identity = jwt.getClaimAsString("https://ecosensor-api/email");
-    	if (identity == null || identity.isEmpty()) {
-            identity = jwt.getClaimAsString("email");
+        // 2. Identificar al usuario (Extracción de identidad del JWT)
+        String email = jwt.getClaimAsString("https://ecosensor-api/email");
+        if (email == null || email.isEmpty()) email = jwt.getClaimAsString("email");
+        if (email == null || email.isEmpty()) email = jwt.getSubject();
+        
+        final String finalEmail = email;
+        Usuario usuario = usuarioRepository.findByEmailWithPlan(finalEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + finalEmail));
+        
+        // 3. LA LÓGICA DE PODER: Encontrar el Plan
+        // Buscamos el plan en la empresa vinculada, si no tiene (Hogar), 
+        // asumimos que el usuario tiene un plan asignado directamente.
+        Plan planActivo = null;
+        if (usuario.getEmpresa() != null) {
+            planActivo = usuario.getEmpresa().getPlan();
+        } 
+        // Si sigue siendo null, podrías buscar usuario.getPlan() si decides añadir ese campo.
+        
+        // 4. EL "POLICÍA": Validar límites (3 para Básico según tu nueva regla)
+        // Si por algún motivo no hay plan en BD, el default de seguridad es 3.
+        int limite = (planActivo != null) ? planActivo.getLimiteSensores() : 3;
+        
+        // Contamos TODOS los sensores activos del usuario (Hogar o Empresa)
+        Long sensoresActuales = sensorRepository.countByUsuarioIdAndActivoTrue(usuario.getId());
+
+        if (sensoresActuales >= limite) {
+            throw new RuntimeException("Límite de " + limite + " sensores alcanzado para tu plan actual (" + 
+                                       (planActivo != null ? planActivo.getNombre() : "Básico") + ").");
         }
-        if (identity == null || identity.isEmpty()) {
-            identity = jwt.getSubject(); // auth0|...
-        }
-        
-        final String finalIdentity = identity; // Para el lambda
-        Usuario usuario = usuarioRepository.findByEmailWithPlan(finalIdentity)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + finalIdentity));
-        
-        
-      
+
+        // 5. Seteo de datos final
         sensor.setFechaInstalacion(LocalDate.now());
         sensor.setActivo(true);
         sensor.setUsuario(usuario);
-
-        if (usuario.getTipoUsuario() != null && "EMPRESA".equals(usuario.getTipoUsuario().name())) {
-            Empresa empresa = usuario.getEmpresa();
-            
-            if (empresa != null) {
-                // Validamos límites solo si hay empresa vinculada
-                Long sensoresActuales = sensorRepository.countByEmpresaIdAndActivoTrue(empresa.getId());
-                int limitePlan = (empresa.getPlan() != null) ? empresa.getPlan().getLimiteSensores() : 3;
-
-                if (sensoresActuales >= limitePlan) {
-                    throw new RuntimeException("Límite de sensores alcanzado para tu plan actual.");
-                }
-                sensor.setEmpresa(empresa);
-            } else {
-                // Si dice ser EMPRESA pero no tiene empresa_id, no bloqueamos el sistema, 
-                // solo lo guardamos como sensor personal para no romper el flujo.
-                sensor.setEmpresa(null);
-            }
-        } else {
-            // Caso HOGAR
-            sensor.setEmpresa(null);
-        }
+        sensor.setEmpresa(usuario.getEmpresa()); // Si es null (Hogar), se guarda null. Perfecto.
 
         return sensorRepository.save(sensor);
     }
-    
     /////
     @Override
     public List<SensorDTO> obtenerMisSensores(Jwt jwt) {
