@@ -46,6 +46,17 @@ public class EmpresaServiceImpl implements EmpresaService {
     }
     
     @Override
+    public Empresa guardar(Empresa empresa) {
+        // Si el plan es obligatorio, asegúrate de que venga asignado o pon uno por defecto
+        if (empresa.getPlan() == null) {
+            Plan planDefecto = planRepository.findById(1L) // Asume que el ID 1 es el plan base
+                .orElseThrow(() -> new RuntimeException("Debe existir un plan base en la BD"));
+            empresa.setPlan(planDefecto);
+        }
+        return empresaRepository.save(empresa);
+    }
+    
+    @Override
     public List<Empresa> listarPorCreador(Long usuarioId) {
         return empresaRepository.findByCreadorId(usuarioId);
     }

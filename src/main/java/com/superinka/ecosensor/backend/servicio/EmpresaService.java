@@ -10,6 +10,8 @@ public interface EmpresaService {
     Empresa guardar(EmpresaRequest request);
 
     List<Empresa> listarTodas();
+    
+    Empresa guardar(Empresa empresa);
 
     Empresa obtenerPorId(Long id);
     

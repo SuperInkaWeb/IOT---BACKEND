@@ -26,9 +26,8 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final EmpresaService empresaService;
     private final EmailService emailService;
+    private final com.superinka.ecosensor.backend.servicio.PlanService planService; // Inyectamos tu PlanService
 
-    // 🔥 CRÍTICO: devuelve 404 cuando el usuario es nuevo — NO 500
-    // el frontend usa este 404 para redirigir a /completar-perfil
     @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponseDTO> perfil(@AuthenticationPrincipal Jwt jwt) {
         String email = jwt.getClaimAsString("email");
@@ -69,22 +68,45 @@ public class UsuarioController {
         } 
         // 2. Si no es el dueño, aplicar lógica normal
         else if (dto.getTipoUsuario() == TipoUsuario.EMPRESA) {
-            u.setRol(Rol.VISOR); // Admin de su empresa
-            if (dto.getEmpresaId() != null) {
-                Empresa empresa = empresaService.obtenerPorId(dto.getEmpresaId());
-                u.setEmpresa(empresa);
+            u.setRol(Rol.VISOR); 
+            
+            
+            
+            if (dto.getEmpresaId() == null && dto.getNombre() != null && !dto.getNombre().isEmpty()) {
+            	
+            	u = usuarioService.guardar(u);
+
+                
+                com.superinka.ecosensor.backend.modelo.Plan planBase = planService.obtenerPorId(1L);
+                
+                Empresa nuevaEmpresa = Empresa.builder()
+                        .nombre(dto.getNombre())
+                        .activa(true)
+                        .creador(u) // Vinculamos quién la creó
+                        .plan(planBase) // <--- CRÍTICO: Asigna un Plan ID por defecto
+                        .build();
+                
+                // Guardamos la empresa primero para que genere ID
+                Empresa empresaGuardada = empresaService.guardar(nuevaEmpresa); 
+                u.setEmpresa(empresaGuardada);
+                
             }
-        } else {
+                else if (dto.getEmpresaId() != null) {
+                    // Si ya seleccionó una empresa existente
+                    u.setEmpresa(empresaService.obtenerPorId(dto.getEmpresaId()));
+                }
+          
+        } else {	
             u.setRol(Rol.VISOR); // Usuario de hogar o visor estándar
             u.setEmpresa(null);
         }
-        Usuario usuarioGuardado = usuarioService.guardar(u);
+        Usuario usuarioFinal = usuarioService.guardar(u);
 
         if (dto.isRecibirAlertasEmail()) {
-            // Al ser @Async, el controller sigue de largo sin esperar a Brevo
-            emailService.enviarBienvenida(usuarioGuardado.getEmail(), usuarioGuardado.getNombre(), u.getTipoUsuario().toString());
+            emailService.enviarBienvenida(usuarioFinal.getEmail(), usuarioFinal.getNombre(), usuarioFinal.getTipoUsuario().toString());
         }
 
-        return new UsuarioResponseDTO(usuarioGuardado);
-    }
+        return new UsuarioResponseDTO(usuarioFinal);
+        }
+    
 }
