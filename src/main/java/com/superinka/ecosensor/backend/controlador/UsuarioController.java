@@ -37,6 +37,7 @@ public class UsuarioController {
                 .orElse(ResponseEntity.notFound().build()); // 🔥 404 no 500
     }
 
+    @Transactional
     @PostMapping("/completar-perfil")
     public UsuarioResponseDTO completarPerfil(
             @AuthenticationPrincipal Jwt jwt,
@@ -75,6 +76,26 @@ public class UsuarioController {
         }
  
         Usuario guardado = usuarioService.guardar(u);
+        
+        
+        if (dto.getTipoUsuario() == TipoUsuario.EMPRESA && guardado.getEmpresa() == null) {
+            // 1. Creamos la empresa solo si no existe
+            Empresa nuevaEmpresa = Empresa.builder()
+                    .nombre("Mi Empresa - " + guardado.getNombre())
+                    .creador(guardado) // Importante para el FK de la tabla empresa
+                    .fechaCreacion(LocalDateTime.now())
+                    .build();
+            
+            Empresa empresaGuardada = empresaService.guardar(nuevaEmpresa);
+            
+            // 2. Vinculamos la empresa al usuario y volvemos a guardar
+            guardado.setEmpresa(empresaGuardada);
+            guardado = usuarioService.guardar(guardado); 
+            
+            System.out.println("Empresa creada y vinculada para el usuario: " + guardado.getEmail());
+        }
+        
+        
  
         // Email de bienvenida — no debe bloquear el registro si falla
         try {
