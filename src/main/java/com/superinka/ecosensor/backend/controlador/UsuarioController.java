@@ -47,7 +47,7 @@ public class UsuarioController {
     	
     	String email = jwt.getClaimAsString("email");
         
-        // 🔥 SIN fallback al sub — si no hay email, lanzar error claro
+        //SIN fallback al sub — si no hay email, lanzar error claro
         if (email == null) {
         	throw new RuntimeException("JWT sin email");
         }
@@ -69,7 +69,7 @@ public class UsuarioController {
         } 
         // 2. Si no es el dueño, aplicar lógica normal
         else if (dto.getTipoUsuario() == TipoUsuario.EMPRESA) {
-            u.setRol(Rol.ADMIN); // Admin de su empresa
+            u.setRol(Rol.VISOR); // Admin de su empresa
             if (dto.getEmpresaId() != null) {
                 Empresa empresa = empresaService.obtenerPorId(dto.getEmpresaId());
                 u.setEmpresa(empresa);
