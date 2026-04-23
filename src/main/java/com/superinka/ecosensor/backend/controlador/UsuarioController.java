@@ -77,6 +77,7 @@ public class UsuarioController {
             // Admin del sistema — sin empresa
             u.setRol(Rol.ADMIN);
             u.setEmpresa(null);
+            return new UsuarioResponseDTO(usuarioService.guardar(u));
         } else {
             // Todos los demás usuarios (EMPRESA u HOGAR) son ADMIN de su propio espacio
             // La empresa se vincula después mediante EmpresaController
@@ -86,16 +87,17 @@ public class UsuarioController {
         
         
         if (dto.getTipoUsuario() == TipoUsuario.EMPRESA
-                && dto.getNombre() != null
-                && !dto.getNombre().isBlank()) {
+                && dto.getEmpresaNombre() != null
+                && !dto.getEmpresaNombre().isBlank()) {
  
             // Guardar usuario primero para tener ID
             u = usuarioService.guardar(u);
  
             // Solo crear empresa si NO tiene una ya
             if (u.getEmpresa() == null) {
-                Plan planBase = planRepository.findById(dto.getPlanId() != null ? dto.getPlanId() : 1L)
-                        .orElseThrow(() -> new RuntimeException("Plan base no encontrado en BD"));
+            	 Long planId = dto.getPlanId() != null ? dto.getPlanId() : 1L;
+                 Plan planBase = planRepository.findById(planId)
+                         .orElseThrow(() -> new RuntimeException("Plan no encontrado. Verifica que exista el plan ID=" + planId));
  
                 Empresa empresa = Empresa.builder()
                         .nombre(dto.getEmpresaNombre())
@@ -108,7 +110,7 @@ public class UsuarioController {
  
                 Empresa empresaGuardada = empresaService.guardar(empresa);
  
-                // 🔥 Vincular empresa al usuario
+                //Vincular empresa al usuario
                 u.setEmpresa(empresaGuardada);
                 u = usuarioService.guardar(u);
             }
@@ -120,21 +122,20 @@ public class UsuarioController {
             u = usuarioService.guardar(u);
         }
         
-        Usuario guardado = usuarioService.guardar(u);
  
         // Email de bienvenida — no debe bloquear el registro si falla
         try {
             if (dto.isRecibirAlertasEmail()) {
                 emailService.enviarBienvenida(
-                    guardado.getEmail(),
-                    guardado.getNombre(),
-                    guardado.getTipoUsuario() != null ? guardado.getTipoUsuario().toString() : "HOGAR"
+                    u.getEmail(),
+                    u.getNombre(),
+                    u.getTipoUsuario() != null ? u.getTipoUsuario().toString() : "HOGAR"
                 );
             }
         } catch (Exception ignored) {
             System.err.println("Email de bienvenida falló (no crítico)");
         }
  
-        return new UsuarioResponseDTO(guardado);
+        return new UsuarioResponseDTO(u);
     }
 }
