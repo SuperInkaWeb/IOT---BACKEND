@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.*;
 import com.superinka.ecosensor.backend.dto.CompletarPerfilDTO;
 import com.superinka.ecosensor.backend.dto.UsuarioResponseDTO;
 import com.superinka.ecosensor.backend.modelo.Empresa;
+import com.superinka.ecosensor.backend.modelo.Plan;
 import com.superinka.ecosensor.backend.modelo.Rol;
 import com.superinka.ecosensor.backend.modelo.TipoUsuario;
 import com.superinka.ecosensor.backend.modelo.Usuario;
+import com.superinka.ecosensor.backend.repositorio.PlanRepository;
 import com.superinka.ecosensor.backend.servicio.EmailService;
 import com.superinka.ecosensor.backend.servicio.EmpresaService;
 import com.superinka.ecosensor.backend.servicio.UsuarioService;
@@ -29,6 +31,8 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final EmpresaService empresaService;
     private final EmailService emailService;
+    private final PlanRepository planRepository;
+
 
     @GetMapping("/perfil")
     public ResponseEntity<UsuarioResponseDTO> perfil(@AuthenticationPrincipal Jwt jwt) {
@@ -67,6 +71,7 @@ public class UsuarioController {
         u.setNombre(dto.getNombre());
         u.setTipoUsuario(dto.getTipoUsuario());
         u.setActivo(true);
+        u.setRecibirAlertasEmail(dto.isRecibirAlertasEmail());
  
         if (email.equalsIgnoreCase("admin@ecosensor.com")) {
             // Admin del sistema — sin empresa
@@ -78,27 +83,44 @@ public class UsuarioController {
             u.setRol(Rol.VISOR);
         }
  
-        Usuario guardado = usuarioService.guardar(u);
         
         
-        if (dto.getTipoUsuario() == TipoUsuario.EMPRESA && guardado.getEmpresa() == null) {
-            // 1. Creamos la empresa solo si no existe
-            Empresa nuevaEmpresa = Empresa.builder()
-                    .nombre("Mi Empresa - " + guardado.getNombre())
-                    .creador(guardado) // Importante para el FK de la tabla empresa
-                    .fechaCreacion(LocalDateTime.now())
-                    .build();
-            
-            Empresa empresaGuardada = empresaService.guardar(nuevaEmpresa);
-            
-            // 2. Vinculamos la empresa al usuario y volvemos a guardar
-            guardado.setEmpresa(empresaGuardada);
-            guardado = usuarioService.guardar(guardado); 
-            
-            System.out.println("Empresa creada y vinculada para el usuario: " + guardado.getEmail());
+        if (dto.getTipoUsuario() == TipoUsuario.EMPRESA
+                && dto.getNombre() != null
+                && !dto.getNombre().isBlank()) {
+ 
+            // Guardar usuario primero para tener ID
+            u = usuarioService.guardar(u);
+ 
+            // Solo crear empresa si NO tiene una ya
+            if (u.getEmpresa() == null) {
+                Plan planBase = planRepository.findById(dto.getPlanId() != null ? dto.getPlanId() : 1L)
+                        .orElseThrow(() -> new RuntimeException("Plan base no encontrado en BD"));
+ 
+                Empresa empresa = Empresa.builder()
+                        .nombre(dto.getEmpresaNombre())
+                        .ruc(dto.getRuc())
+                        .activa(true)
+                        .creador(u)
+                        .plan(planBase)
+                        .fechaCreacion(LocalDateTime.now())
+                        .build();
+ 
+                Empresa empresaGuardada = empresaService.guardar(empresa);
+ 
+                // 🔥 Vincular empresa al usuario
+                u.setEmpresa(empresaGuardada);
+                u = usuarioService.guardar(u);
+            }
+ 
+        } else if (dto.getTipoUsuario() == TipoUsuario.HOGAR) {
+            u.setEmpresa(null);
+            u = usuarioService.guardar(u);
+        } else {
+            u = usuarioService.guardar(u);
         }
         
-        
+        Usuario guardado = usuarioService.guardar(u);
  
         // Email de bienvenida — no debe bloquear el registro si falla
         try {
