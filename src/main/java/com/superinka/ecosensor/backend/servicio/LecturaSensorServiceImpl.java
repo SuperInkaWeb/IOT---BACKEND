@@ -3,6 +3,8 @@ package com.superinka.ecosensor.backend.servicio;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.superinka.ecosensor.backend.dto.LecturaRequest;
 import com.superinka.ecosensor.backend.dto.LecturaResponse;
@@ -32,6 +34,7 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
     private final EmailService emailService;
 
     @Override
+    @Transactional
     public LecturaResponse registrarDesdeSensor(LecturaRequest request) {
 
         if (request.getDeviceId() == null)
@@ -80,6 +83,15 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
                 (config.getRangoMin() != null && valor < config.getRangoMin()) ||
                 (config.getRangoMax() != null && valor > config.getRangoMax());
 
+        String ownerId = (sensor.getEmpresa() != null)
+                ? sensor.getEmpresa().getId().toString()
+                : sensor.getUsuario().getId().toString();
+        String key = ownerId + "_" + tipo.name();
+        
+        boolean esAnomalia = anomalyService.esAnomalia(
+                key, nueva.getValor(), nueva.getTemperatura(), nueva.getHumedad()
+        );
+        
         if (fueraDeRango) {
             Alerta alerta = Alerta.builder()
                     .sensor(sensor)
@@ -96,20 +108,11 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
 
             //enviar email automático para alertas ALTO
             enviarEmailAlerta(alertaGuardada, sensor);
-        }
+        
 
-        // ── MACHINE LEARNING ───────────────────────────────────────
-        String ownerId = (sensor.getEmpresa() != null)
-                ? sensor.getEmpresa().getId().toString()
-                : sensor.getUsuario().getId().toString();
+      
 
-        String key = ownerId + "_" + tipo.name();
-
-        boolean esAnomalia = anomalyService.esAnomalia(
-                key, nueva.getValor(), nueva.getTemperatura(), nueva.getHumedad()
-        );
-
-        if (esAnomalia) {
+    } else if (esAnomalia) {
             nueva.setAnomaliaDetectada(true);
             lecturaRepository.save(nueva);
 

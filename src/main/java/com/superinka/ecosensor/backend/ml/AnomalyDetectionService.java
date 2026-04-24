@@ -14,15 +14,23 @@ public class AnomalyDetectionService {
 	private final Map<String, IsolationForest> modelos = new ConcurrentHashMap<>();
 
     // Entrenar modelo con datos históricos
-    public void entrenarModelo(String key, double[][] data) {
-    	
-    	if (data == null || data.length < 10) 
-            return; // muy pocos datos para entrenar
-        
-    	IsolationForest model = IsolationForest.fit(data);
+	public void entrenarModelo(String key, double[][] data) {
+	    // 1. Validación de seguridad: Necesitas un mínimo de datos para que el bosque sea estable
+	    if (data == null || data.length < 20) { 
+	        return; 
+	    }
 
-        modelos.put(key, model);
-    }
+	    try {
+	        // 2. Volvemos a la firma estándar que no da error
+	        // La mayoría de las versiones de Smile usan esta:
+	        IsolationForest model = IsolationForest.fit(data); 
+
+	        modelos.put(key, model);
+	    } catch (Exception e) {
+	        // Evitamos que un error de entrenamiento tire abajo todo el backend
+	        System.err.println("Error entrenando modelo ML para " + key + ": " + e.getMessage());
+	    }
+	}
 
     // Evaluar si un valor es anomalía
     public boolean esAnomalia(String key, Double valor, Double temperatura, Double humedad) {

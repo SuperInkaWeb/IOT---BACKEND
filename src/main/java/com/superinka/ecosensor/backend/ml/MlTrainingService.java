@@ -3,8 +3,10 @@ package com.superinka.ecosensor.backend.ml;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.superinka.ecosensor.backend.modelo.Empresa;
 import com.superinka.ecosensor.backend.modelo.LecturaSensor;
 import com.superinka.ecosensor.backend.modelo.TipoMetrica;
+import com.superinka.ecosensor.backend.repositorio.EmpresaRepository;
 import com.superinka.ecosensor.backend.repositorio.LecturaSensorRepository;
 
 import java.util.List;
@@ -15,44 +17,36 @@ public class MlTrainingService {
 
     private final LecturaSensorRepository lecturaRepository;
     private final AnomalyDetectionService anomalyService;
+    private final EmpresaRepository empresaRepository;
 
-    public void entrenarModelo(Long empresaId, String tipo) {
-    	
-        TipoMetrica tipoEnum = TipoMetrica.valueOf(tipo.toUpperCase());
+    public void entrenarModelo(Long ownerId, String tipo) {
+        try {
+            TipoMetrica tipoEnum = TipoMetrica.valueOf(tipo.toUpperCase());
+            List<LecturaSensor> lecturas = lecturaRepository.obtenerLecturasHistoricas(ownerId, tipoEnum);
 
+            // Mínimo 50 para que el Isolation Forest sea estadísticamente serio
+            if (lecturas == null || lecturas.size() < 50) return;
 
-        List<LecturaSensor> lecturas =
-                lecturaRepository.obtenerLecturasHistoricas(empresaId, tipoEnum);
-        
-        
-        if (lecturas.size() < 20) {
-            return;
+            double[][] data = new double[lecturas.size()][3];
+            for (int i = 0; i < lecturas.size(); i++) {
+                LecturaSensor l = lecturas.get(i);
+                data[i][0] = l.getValor() != null ? l.getValor() : 0;
+                data[i][1] = l.getTemperatura() != null ? l.getTemperatura() : 0;
+                data[i][2] = l.getHumedad() != null ? l.getHumedad() : 0;
+            }
+
+            // Usamos el mismo formato de KEY que usa LecturaSensorServiceImpl
+            String key = ownerId + "_" + tipoEnum.name();
+            anomalyService.entrenarModelo(key, data);
+            
+        } catch (Exception e) {
+            System.err.println("Error entrenando métrica " + tipo + " para owner " + ownerId + ": " + e.getMessage());
         }
-        
-        
-        double[][] data = new double[lecturas.size()][3];
-
-        for (int i = 0; i < lecturas.size(); i++) {
-        	
-        	LecturaSensor l = lecturas.get(i);
-
-            double v = l.getValor() != null ? l.getValor() : 0;
-            double t = l.getTemperatura() != null ? l.getTemperatura() : 0;
-            double h = l.getHumedad() != null ? l.getHumedad() : 0;
-
-            data[i][0] = v;  
-            data[i][1] = t;    
-            data[i][2] = h;    
-        } 
-        
-        String key = empresaId + "_" + tipo;
-
-        anomalyService.entrenarModelo(key, data);
     }
     
     public void entrenarModeloGlobal() {
 
-        Long empresaId = 1L; 
+    	List<Empresa> empresas = empresaRepository.findAll(); 
 
         String[] metricas = {
                 "pm25",
@@ -61,8 +55,10 @@ public class MlTrainingService {
                 "energia"
         };
 
-        for (String tipo : metricas) {
-            entrenarModelo(empresaId, tipo);
+        for (Empresa emp : empresas) {
+            for (String tipo : metricas) {
+                entrenarModelo(emp.getId(), tipo);
+            }
         }
     }
 }
