@@ -28,7 +28,7 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
     private final AnomalyDetectionService anomalyService;
     private final MlTrainingService mlTrainingService;
 
-    // 🔥 inyectamos EmailService para alertas automáticas
+    //inyectamos EmailService para alertas automáticas
     private final EmailService emailService;
 
     @Override
@@ -94,7 +94,7 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
 
             Alerta alertaGuardada = alertaRepository.save(alerta);
 
-            // 🔥 enviar email automático para alertas ALTO
+            //enviar email automático para alertas ALTO
             enviarEmailAlerta(alertaGuardada, sensor);
         }
 
@@ -126,7 +126,7 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
 
             Alerta alertaGuardada = alertaRepository.save(alerta);
 
-            // 🔥 enviar email automático para anomalías CRITICO
+            //enviar email automático para anomalías CRITICO
             enviarEmailAlerta(alertaGuardada, sensor);
         }
 

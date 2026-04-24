@@ -22,7 +22,7 @@ public class AlertaController {
 
     private final AlertaService alertaService;
 
-    // 🔹 Listar todas las alertas
+    //Listar todas las alertas
     @GetMapping
     public List<AlertaDTO> listarTodas() {
         return alertaService.listarTodas()
@@ -44,7 +44,7 @@ public class AlertaController {
     }
     
 
-    // 🔹 Listar alertas no atendidas
+    //Listar alertas no atendidas
     @GetMapping("/no-atendidas")
     public List<AlertaDTO> listarNoAtendidas() {
         return alertaService.listarNoAtendidas()
@@ -53,7 +53,7 @@ public class AlertaController {
                 .collect(Collectors.toList());
     }
 
-    // 🔹 Listar alertas por sensor
+    //Listar alertas por sensor
     @GetMapping("/sensor/{sensorId}")
     public List<AlertaDTO> listarPorSensor(@PathVariable Long sensorId) {
         return alertaService.listarPorSensor(sensorId)
@@ -63,7 +63,7 @@ public class AlertaController {
     }
 
 
-    // 🔹 Marcar alerta como atendida
+    //Marcar alerta como atendida
     @PutMapping("/{id}/atender")
     public AlertaDTO atender(@PathVariable Long id) {
         Alerta alerta = alertaService.marcarComoAtendida(id);

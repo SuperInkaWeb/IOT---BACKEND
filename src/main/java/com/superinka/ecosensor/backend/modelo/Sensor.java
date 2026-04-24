@@ -23,7 +23,7 @@ public class Sensor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🔹 Relación con empresa
+    //Relación con empresa
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "empresa_id")
     @JsonIgnoreProperties({"sensores", "usuarios", "plan", "hibernateLazyInitializer", "handler"})

@@ -35,7 +35,7 @@ public class EmpresaController {
  
             Empresa empresa = empresaService.guardar(request);
  
-            // 🔥 Vincular empresa al usuario autenticado
+            //Vincular empresa al usuario autenticado
             String finalEmail = email;
             usuarioRepository.findByEmailWithPlan(email).ifPresent(u -> {
                 u.setEmpresa(empresa);

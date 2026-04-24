@@ -35,7 +35,7 @@ public class LecturaSensorController {
                 response
             );
 
-        // 3️⃣ Devolver la lectura guardada
+        //Devolver la lectura guardada
         return response;
     }
     

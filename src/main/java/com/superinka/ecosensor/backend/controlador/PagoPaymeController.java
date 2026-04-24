@@ -31,7 +31,7 @@ public class PagoPaymeController {
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuariorepository;
 
-    // 🔥 estas credenciales las da Pay-me al registrarte
+    //estas credenciales las da Pay-me al registrarte
     @Value("${payme.merchant-id}")
     private String merchantId;
 
@@ -77,7 +77,7 @@ public class PagoPaymeController {
         final Long suscripcionId = suscripcion.getId();
 
         // llamar a Pay-me para generar el token de pago
-        // 🔥 cuando tengas las credenciales reales, descomenta esto:
+        //cuando tengas las credenciales reales, descomenta esto:
         /*
         RestTemplate rest = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();

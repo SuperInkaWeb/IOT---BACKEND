@@ -27,7 +27,6 @@ public class AdminController {
     private final PlanRepository planRepository;
 
     // Solo ADMIN puede acceder
-    // @PreAuthorize("hasRole('ADMIN')")  // activar cuando implementes roles admin
 
     // ── KPIs GLOBALES ─────────────────────────────────────────────
     @GetMapping("/kpis")
@@ -62,7 +61,7 @@ public class AdminController {
                 : 0.0;
         kpis.put("churnRate", churnRate);
  
-        // 📊 Empresas activas vs inactivas
+        // Empresas activas vs inactivas
         long empresasActivas   = empresaRepository.findAll().stream().filter(e -> Boolean.TRUE.equals(e.getActiva())).count();
         long empresasInactivas = empresaRepository.count() - empresasActivas;
         kpis.put("empresasActivas",   empresasActivas);

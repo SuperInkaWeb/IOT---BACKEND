@@ -39,7 +39,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
         usuario.setActivo(true); // Siempre activo al completar perfil
 
-        // 🛡️ Lógica de Super Admin (Dueño del sistema)
+        //Lógica de Super Admin (Dueño del sistema)
         if (dto.getEmail().equalsIgnoreCase("admin@ecosensor.com")) { 
             usuario.setRol(Rol.ADMIN);
             usuario.setEmpresa(null); // Tú no eres de una empresa, eres el dueño de TODO

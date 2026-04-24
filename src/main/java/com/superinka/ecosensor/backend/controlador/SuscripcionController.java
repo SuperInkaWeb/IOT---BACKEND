@@ -20,7 +20,7 @@ public class SuscripcionController {
 
     private final SuscripcionService suscripcionService;
 
-    // 🔹 Crear suscripción
+    //Crear suscripción
     @PostMapping
     public ResponseEntity<SuscripcionResponse> crear(
             @Valid @RequestBody SuscripcionRequest request) {
@@ -41,7 +41,7 @@ public class SuscripcionController {
         );
     }
     
-    // 🔹 Listar suscripciones por empresa
+    //Listar suscripciones por empresa
     @GetMapping("/empresa/{empresaId}")
     public ResponseEntity<List<SuscripcionResponse>> listarPorEmpresa(
             @PathVariable Long empresaId) {
@@ -51,7 +51,7 @@ public class SuscripcionController {
         );
     }
 
-    // 🔹 Obtener suscripción por ID
+    //Obtener suscripción por ID
     @GetMapping("/{id}")
     public ResponseEntity<SuscripcionResponse> obtenerPorId(
             @PathVariable Long id) {
@@ -61,7 +61,7 @@ public class SuscripcionController {
         );
     }
 
-    // 🔹 Cancelar suscripción
+    //Cancelar suscripción
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<SuscripcionResponse> cancelar(
             @PathVariable Long id) {

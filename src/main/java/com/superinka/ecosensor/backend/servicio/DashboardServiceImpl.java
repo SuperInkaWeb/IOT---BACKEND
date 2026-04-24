@@ -44,7 +44,7 @@ public class DashboardServiceImpl implements DashboardService {
         
         
 
-        // 🔹 MÉTRICAS REALES
+        //MÉTRICAS REALES
         Double pm25 = Optional.ofNullable(
         	    lecturaRepository.promedioMetricaEmpresa(empresaId, TipoMetrica.PM25)
         	).orElse(0.0);
@@ -61,10 +61,10 @@ public class DashboardServiceImpl implements DashboardService {
         	    lecturaRepository.promedioMetricaEmpresa(empresaId, TipoMetrica.ENERGIA)
         	).orElse(0.0);
 
-        // 🔥 ANOMALÍAS (clave para vender)
+        //ANOMALÍAS (clave para vender)
         Long anomalias = lecturaRepository.countAnomalias(empresaId);
 
-        // 🧠 ESTADO GENERAL
+        //ESTADO GENERAL
         String estado = "BUENO";
 
         if (pm25 > 100 || co2 > 1000 || energia > 10) {

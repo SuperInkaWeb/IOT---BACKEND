@@ -77,8 +77,14 @@ public class SensorServiceImpl implements SensorService {
         int limite = (planActivo != null) ? planActivo.getLimiteSensores() : 3;
         
         // Contamos TODOS los sensores activos del usuario (Hogar o Empresa)
-        Long sensoresActuales = sensorRepository.countByUsuarioIdAndActivoTrue(usuario.getId());
-
+        Long sensoresActuales;
+        if (usuario.getEmpresa() != null) {
+            // Si es empresa, contamos TODOS los sensores vinculados a esa empresa
+            sensoresActuales = sensorRepository.countByEmpresaIdAndActivoTrue(usuario.getEmpresa().getId());
+        } else {
+            // Si es Hogar, contamos sus sensores personales
+            sensoresActuales = sensorRepository.countByUsuarioIdAndActivoTrue(usuario.getId());
+        }
         if (sensoresActuales >= limite) {
             throw new RuntimeException("Límite de " + limite + " sensores alcanzado para tu plan actual (" + 
                                        (planActivo != null ? planActivo.getNombre() : "Básico") + ").");
@@ -128,8 +134,8 @@ public class SensorServiceImpl implements SensorService {
         	            .ubicacion(s.getUbicacion())
         	            .activo(s.getActivo())
         	            .esGlobal(s.getEsGlobal())
-                        .latitud((java.math.BigDecimal) s.getLatitud())
-                        .longitud((java.math.BigDecimal) s.getLongitud())
+        	            .latitud(s.getLatitud() != null ? java.math.BigDecimal.valueOf(s.getLatitud().doubleValue()) : null)
+        	            .longitud(s.getLongitud() != null ? java.math.BigDecimal.valueOf(s.getLongitud().doubleValue()) : null)
                         .build())
         	    .toList();
     }

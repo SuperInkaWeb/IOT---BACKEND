@@ -20,7 +20,7 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🔹 Relación con Empresa
+    //Relación con Empresa
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "empresa_id", nullable = true)
     @JsonIgnoreProperties({"usuarios", "sensores", "hibernateLazyInitializer", "handler"})

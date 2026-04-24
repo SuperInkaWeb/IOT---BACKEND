@@ -40,9 +40,9 @@ public class MlTrainingService {
             double t = l.getTemperatura() != null ? l.getTemperatura() : 0;
             double h = l.getHumedad() != null ? l.getHumedad() : 0;
 
-            data[i][0] = v;     // valor
-            data[i][1] = t;    // temperatura simulada (temporal)
-            data[i][2] = h;    // humedad simulada
+            data[i][0] = v;  
+            data[i][1] = t;    
+            data[i][2] = h;    
         } 
         
         String key = empresaId + "_" + tipo;
@@ -52,7 +52,7 @@ public class MlTrainingService {
     
     public void entrenarModeloGlobal() {
 
-        Long empresaId = 1L; // temporal mientras pruebas
+        Long empresaId = 1L; 
 
         String[] metricas = {
                 "pm25",
