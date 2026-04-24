@@ -29,8 +29,7 @@ public class Empresa {
     @Column(unique = true, length = 20)
     private String ruc;
 
-    @Column(length = 150)
-    private String emailContacto;
+  
     
     
     @ManyToOne(fetch = FetchType.LAZY)

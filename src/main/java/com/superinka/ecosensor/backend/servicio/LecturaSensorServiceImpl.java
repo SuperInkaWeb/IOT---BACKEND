@@ -151,8 +151,8 @@ public class LecturaSensorServiceImpl implements LecturaSensorService {
             if (sensor.getUsuario() != null) {
                 email  = sensor.getUsuario().getEmail();
                 nombre = sensor.getUsuario().getNombre();
-            } else if (sensor.getEmpresa() != null) {
-                email  = sensor.getEmpresa().getEmailContacto();
+            } else if (sensor.getEmpresa() != null && sensor.getEmpresa().getCreador() != null) {
+                email  = sensor.getEmpresa().getCreador().getEmail();
                 nombre = sensor.getEmpresa().getNombre();
             }
 

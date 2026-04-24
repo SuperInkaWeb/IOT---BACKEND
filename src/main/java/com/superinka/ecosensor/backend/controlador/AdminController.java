@@ -131,7 +131,7 @@ public class AdminController {
                     m.put("id",            e.getId());
                     m.put("nombre",        e.getNombre());
                     m.put("ruc",           e.getRuc());
-                    m.put("email",         e.getEmailContacto());
+                    m.put("email",         e.getCreador() != null ? e.getCreador().getEmail() : "Sin contacto");
                     m.put("activa",        e.getActiva());
                     m.put("plan",          e.getPlan() != null ? e.getPlan().getNombre() : null);
                     m.put("precioPlan",    e.getPlan() != null ? e.getPlan().getPrecioMensual() : null);

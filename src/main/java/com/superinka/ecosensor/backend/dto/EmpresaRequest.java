@@ -7,7 +7,6 @@ public class EmpresaRequest {
 
     private String nombre;
     private String ruc;
-    private String emailContacto;
     private Long planId;
     private Long creadorId;
 

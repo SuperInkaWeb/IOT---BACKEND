@@ -35,7 +35,6 @@ public class EmpresaServiceImpl implements EmpresaService {
         Empresa empresa = Empresa.builder()
                 .nombre(request.getNombre())
                 .ruc(request.getRuc())
-                .emailContacto(request.getEmailContacto())
                 .creador(creador)
                 .plan(plan)
                 .activa(true)
