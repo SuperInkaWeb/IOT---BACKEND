@@ -138,4 +138,25 @@ public class UsuarioController {
  
         return new UsuarioResponseDTO(u);
     }
+    
+    @PutMapping("/perfil")
+    public ResponseEntity<UsuarioResponseDTO> actualizarPerfil(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody CompletarPerfilDTO dto) { // Reutilizamos el DTO o crea uno nuevo llamado ActualizarPerfilDTO
+        
+        String email = jwt.getClaimAsString("email");
+        if (email == null) email = jwt.getSubject();
+
+        return usuarioService.buscarPorEmail(email)
+                .map(u -> {
+                    // Actualizamos solo los campos permitidos desde el perfil
+                    u.setNombre(dto.getNombre());
+                    u.setRecibirAlertasEmail(dto.isRecibirAlertasEmail());
+                    // Aquí podrías agregar más campos como u.setEmailRecuperacion(...)
+                    
+                    Usuario actualizado = usuarioService.guardar(u);
+                    return ResponseEntity.ok(new UsuarioResponseDTO(actualizado));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
