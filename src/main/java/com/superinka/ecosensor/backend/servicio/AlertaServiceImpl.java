@@ -33,19 +33,13 @@ public class AlertaServiceImpl implements AlertaService {
     @Override
     public List<Alerta> listarPorUsuarioEmail(String email) {
     	
-    	return usuarioRepository.findByEmailWithPlan(email)
-                .map(usuario -> {
-                    // Si el usuario es tipo EMPRESA, buscamos por el ID de su empresa
-                    if (usuario.getTipoUsuario() != null && "EMPRESA".equals(usuario.getTipoUsuario().name())) {
-                        return alertaRepository.findBySensorEmpresaId(usuario.getEmpresa().getId());
-                    } 
-                    // Si es usuario normal (o cualquier otro), por su ID de usuario
-                    else {
-                        return alertaRepository.findBySensorUsuarioId(usuario.getId());
-                    }
-                })
-                // Si el email no existe en la BD, devolvemos una lista vacía en lugar de romper el servidor
-                .orElse(java.util.Collections.emptyList());
+    	  Usuario usuario = usuarioRepository.findByEmailWithPlan(email)
+                  .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+          if (usuario.getTipoUsuario() != null && "EMPRESA".equals(usuario.getTipoUsuario().name())) {
+              return alertaRepository.findBySensorEmpresaId(usuario.getEmpresa().getId());
+          } else {
+              return alertaRepository.findBySensorUsuarioId(usuario.getId());
+          }
     }
 
     @Override
