@@ -72,14 +72,52 @@ PASOS PARA CONFIGURACIÓN DE AUTH0 (CONTROL TOTAL DE ACCESO)
 	  NOTA: Sin el https:// y sin barras.
      
 
+6. CONFIGURACIÓN DE ROLES Y EMAIL (AUTH0 ACTIONS)
 
-6. GESTIÓN DE USUARIOS Y ASIGNACIÓN DE ROLES
+
+En el menú izquierdo de Auth0, vaya a Actions -> Library.
+
+Haga clic en el botón azul Create Action -> Build from scratch.
+
+Name: AgregarRolesToken
+
+Trigger: Login / Post Login
+
+
+Se abrirá un editor de código. Borre todo lo que haya y pegue exactamente este código:
+
+
+exports.onExecutePostLogin = async (event, api) => {
+  const namespace = "https://ecosensor-api/";
+
+  if (event.user.email) {
+    api.accessToken.setCustomClaim(namespace + "email", event.user.email);
+    api.accessToken.setCustomClaim("email", event.user.email);
+  }
+
+  if (event.authorization && event.authorization.roles) {
+    api.accessToken.setCustomClaim(namespace + "roles", event.authorization.roles);
+  }
+};
+
+
+Haga clic en Deploy (botón arriba a la derecha).
+
+MUY IMPORTANTE: Ahora vaya a Actions -> Triggers.
+
+Haga clic en Post Login.
+
+Verá su acción AgregarRolesToken en el lado derecho. Arrástrela y suéltela en el flujo (el círculo que une el "Start" con el "Complete").
+
+Haga clic en Apply.
+
+
+7. GESTIÓN DE USUARIOS Y ASIGNACIÓN DE ROLES
 Una vez configurado todo el sistema, para que una persona pueda entrar a la aplicación, usted debe seguir estos pasos en el panel de Auth0:
 
 Vaya a User Management -> Users.
 
 Haga clic en Create User para registrar a un nuevo usuario.
-   
 
 
   
