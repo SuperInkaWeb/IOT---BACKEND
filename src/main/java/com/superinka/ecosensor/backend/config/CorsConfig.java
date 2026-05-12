@@ -16,7 +16,7 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
             	registry.addMapping("/api/**")
                 // Agregamos la URL de Netlify (cuando la tengas) y mantenemos localhost para pruebas
-                .allowedOriginPatterns("http://localhost:4200", "https://*.netlify.app") 
+                .allowedOriginPatterns("http://localhost:4200", "https://*.netlify.app","https://zentiot.com") 
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);

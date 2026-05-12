@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/public")
-@CrossOrigin(origins = {"http://localhost:4200", "https://ecosensor-inka.netlify.app", "https://*.netlify.app"})
+@CrossOrigin(origins = {"http://localhost:4200", "https://ecosensor-inka.netlify.app",  "https://ecosensor2.netlify.app", "https://*.netlify.app"})
 public class HealthController {
 
     //Endpoint de warm-up — responde en milisegundos

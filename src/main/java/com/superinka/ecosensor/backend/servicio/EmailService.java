@@ -25,7 +25,7 @@ public class EmailService {
 	private String fromEmail;
 
 
-    @Value("${sendgrid.from-name:EcoSensor}")
+    @Value("${app.mail.from-name:EcoSensor}")
     private String fromName;
 
     // ── ENVIAR ALERTA POR EMAIL ───────────────────────────────────
