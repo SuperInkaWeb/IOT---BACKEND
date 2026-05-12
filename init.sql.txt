@@ -14,126 +14,195 @@ DROP TABLE IF EXISTS plan CASCADE;
 -- 2. TABLAS MAESTRAS (Sin dependencias)
 -- =============================================
 
+-- 1. Tablas Base
 CREATE TABLE plan (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    precio_mensual NUMERIC(10,2),
-    limite_sensores INTEGER,
-    descripcion TEXT
+    nombre varchar(100),
+    descripcion text,
+    precio_mensual numeric(10,2), 
+    limite_sensores integer,
+    tiene_ia boolean DEFAULT FALSE,
+    tiene_reportes_pdf boolean DEFAULT FALSE,
+    dias_historial integer
+);
+
+CREATE TABLE usuario (
+    id SERIAL PRIMARY KEY,
+    empresa_id integer,
+    plan_id integer,
+    nombre varchar(150) NOT NULL,
+    email varchar(150) UNIQUE NOT NULL,
+    password_hash TEXT,
+    rol varchar(20) DEFAULT 'VISOR',
+    tipo_usuario varchar(20),
+    recibir_alertas_email boolean DEFAULT TRUE,
+    activo boolean DEFAULT TRUE,
+    fecha_creacion timestamp
 );
 
 CREATE TABLE empresa (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(150) NOT NULL,
-    ruc VARCHAR(20) UNIQUE,
-    email_contacto VARCHAR(150),
-    plan_id BIGINT,
-    creador_id BIGINT,
-    activa BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    nombre varchar(150) NOT NULL,
+    ruc varchar(20) UNIQUE,
+    creador_id integer,
+    plan_id integer NOT NULL,
+    activa boolean DEFAULT TRUE,
+    fecha_creacion timestamp
 );
-
--- =============================================
--- 3. USUARIOS Y SEGURIDAD (Auth0 Ready)
--- =============================================
-
-CREATE TABLE usuario (
-    id SERIAL PRIMARY KEY,
-    empresa_id INTEGER, -- Puede ser NULL para usuarios HOGAR
-    nombre VARCHAR(150) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash TEXT, -- Puede ser opcional si usas Auth0
-    rol VARCHAR(20), -- ADMIN, OPERADOR, VISOR
-    tipo_usuario VARCHAR(20) DEFAULT 'HOGAR',
-    recibir_alertas_email BOOLEAN DEFAULT TRUE,
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================
--- 4. SENSORES Y MÉTRICAS
--- =============================================
 
 CREATE TABLE sensor (
     id SERIAL PRIMARY KEY,
-    empresa_id INTEGER,
-    usuario_id INTEGER,
-    device_id VARCHAR(100), 
-    tipo VARCHAR(100) NOT NULL, -- AIRE, AGUA, ENERGIA
-    modelo VARCHAR(100),
-    ubicacion VARCHAR(150),
-    latitud DECIMAL(9,6),
-    longitud DECIMAL(9,6),
-    es_global BOOLEAN DEFAULT FALSE,
-    altura_instalacion DECIMAL(3,2),
-    activo BOOLEAN DEFAULT TRUE,
-    fecha_instalacion DATE DEFAULT CURRENT_DATE,
-    CONSTRAINT fk_sensor_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id) ON DELETE CASCADE,
-    CONSTRAINT fk_sensor_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+    empresa_id integer,
+    usuario_id integer,
+    device_id varchar(100) UNIQUE NOT NULL,
+    tipo varchar(100) NOT NULL,
+    modelo varchar(100),
+    ubicacion varchar(150),
+    latitud numeric(9,6),
+    longitud numeric(9,6),
+    activo boolean DEFAULT TRUE,
+    fecha_instalacion date NOT NULL,
+    es_global boolean DEFAULT FALSE,
+    altura_instalacion numeric(3,2)
+);
+
+CREATE TABLE suscripcion (
+    id SERIAL PRIMARY KEY,
+    usuario_id integer NOT NULL,
+    empresa_id integer,
+    plan_id integer NOT NULL,
+    fecha_inicio date,
+    fecha_fin date,
+    payme_order_id varchar(100),
+    estado_pago varchar(20),
+    moneda varchar(20) DEFAULT 'PEN',
+    estado varchar(20) DEFAULT 'ACTIVA'
 );
 
 CREATE TABLE lectura_sensor (
     id BIGSERIAL PRIMARY KEY,
-    sensor_id BIGINT NOT NULL,
-    tipo_metrica VARCHAR(50) NOT NULL,
-    valor DOUBLE PRECISION NOT NULL,
-    temperatura DOUBLE PRECISION,
-    humedad DOUBLE PRECISION,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    unidad VARCHAR(20),
-    anomalia_detectada BOOLEAN DEFAULT FALSE,
-    CONSTRAINT fk_sensor_lectura FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
+    sensor_id integer NOT NULL,
+    tipo_metrica varchar(50) NOT NULL,
+    valor double precision NOT NULL,
+    temperatura double precision,
+    humedad double precision,
+    unidad varchar(20),
+    fecha timestamp,
+    anomalia_detectada boolean DEFAULT FALSE
 );
 
 CREATE TABLE configuracion_metrica (
     id SERIAL PRIMARY KEY,
-    sensor_id INTEGER NOT NULL,
-    tipo_metrica VARCHAR(50) NOT NULL,
-    rango_min DOUBLE PRECISION,
-    rango_max DOUBLE PRECISION,
-    unidad VARCHAR(20),
-    CONSTRAINT fk_config_metrica_sensor FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE
-);
-
--- =============================================
--- 5. PAGOS Y ALERTAS
--- =============================================
-
-CREATE TABLE suscripcion (
-    id SERIAL PRIMARY KEY,
-    empresa_id INTEGER NOT NULL,
-    plan_id INTEGER NOT NULL,
-    payme_order_id VARCHAR(100),
-    estado_pago VARCHAR(20),
-    moneda VARCHAR(20) DEFAULT 'PEN',
-    fecha_inicio DATE DEFAULT CURRENT_DATE,
-    fecha_fin DATE,
-    estado VARCHAR(20) DEFAULT 'ACTIVA',
-    CONSTRAINT fk_suscripcion_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id) ON DELETE CASCADE,
-    CONSTRAINT fk_suscripcion_plan FOREIGN KEY (plan_id) REFERENCES plan(id)
+    sensor_id integer NOT NULL,
+    tipo_metrica varchar(50) NOT NULL,
+    rango_min double precision,
+    rango_max double precision,
+    unidad varchar(20)
 );
 
 CREATE TABLE alerta (
     id BIGSERIAL PRIMARY KEY,
-    sensor_id INTEGER NOT NULL,
-    lectura_id BIGINT,
-    tipo_metrica VARCHAR(50),
-    valor DOUBLE PRECISION,
+    sensor_id integer NOT NULL,
+    lectura_id bigint,
+    tipo_metrica varchar(50),
+    valor double precision,
     mensaje TEXT,
-    nivel VARCHAR(20), -- BAJO, MEDIO, ALTO
-    atendida BOOLEAN DEFAULT FALSE,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_alerta_sensor FOREIGN KEY (sensor_id) REFERENCES sensor(id) ON DELETE CASCADE,
-    CONSTRAINT fk_alerta_lectura FOREIGN KEY (lectura_id) REFERENCES lectura_sensor(id) ON DELETE SET NULL
+    nivel varchar(20), -- BAJO, MEDIO, ALTO
+    atendida boolean DEFAULT FALSE,
+    fecha timestamp
 );
 
--- =============================================
--- 6. DATA INICIAL (Seed Data)
--- =============================================
 
-INSERT INTO plan (nombre, precio_mensual, limite_sensores) VALUES 
-('Básico', 45.00, 5),
-('Pro', 169.00, 20),
-('Enterprise', 675.00, 99999);
+-- RELACIONES (FOREIGN KEYS)
 
--- Agrega aquí tus INSERT de sensores que pasaste arriba para tener data de prueba
+ALTER TABLE usuario ADD CONSTRAINT fk_u_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id);
+ALTER TABLE usuario ADD CONSTRAINT fk_u_plan FOREIGN KEY (plan_id) REFERENCES plan(id);
+ALTER TABLE empresa ADD CONSTRAINT fk_e_creador FOREIGN KEY (creador_id) REFERENCES usuario(id);
+ALTER TABLE empresa ADD CONSTRAINT fk_e_plan FOREIGN KEY (plan_id) REFERENCES plan(id);
+ALTER TABLE sensor ADD CONSTRAINT fk_s_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id);
+ALTER TABLE sensor ADD CONSTRAINT fk_s_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id);
+ALTER TABLE suscripcion ADD CONSTRAINT fk_sub_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id);
+ALTER TABLE suscripcion ADD CONSTRAINT fk_sub_empresa FOREIGN KEY (empresa_id) REFERENCES empresa(id);
+ALTER TABLE suscripcion ADD CONSTRAINT fk_sub_plan FOREIGN KEY (plan_id) REFERENCES plan(id);
+
+
+-- Datos para la tabla: configuracion_metrica
+INSERT INTO configuracion_metrica (id, sensor_id, tipo_metrica, rango_min, rango_max, unidad) VALUES (4, 2, 'HUMEDAD', 40, 60, '%');
+INSERT INTO configuracion_metrica (id, sensor_id, tipo_metrica, rango_min, rango_max, unidad) VALUES (5, 2, 'PM25', 0, 50, 'µg/m3');
+INSERT INTO configuracion_metrica (id, sensor_id, tipo_metrica, rango_min, rango_max, unidad) VALUES (6, 2, 'TEMPERATURA', 18, 26, '°C');
+
+-- Datos para la tabla: plan
+INSERT INTO plan (id, nombre, precio_mensual, limite_sensores, descripcion, tiene_ia, tiene_reportes_pdf, dias_historial) VALUES (1, 'Free / Inicial', 0.0, 3, 'Plan para hogares pequeños', False, False, 30);
+INSERT INTO plan (id, nombre, precio_mensual, limite_sensores, descripcion, tiene_ia, tiene_reportes_pdf, dias_historial) VALUES (2, 'Pro', 169.0, 20, 'Plan para hogares inteligentes avanzados', True, True, 365);
+INSERT INTO plan (id, nombre, precio_mensual, limite_sensores, descripcion, tiene_ia, tiene_reportes_pdf, dias_historial) VALUES (3, 'Enterprise', 675.0, 9999, 'Plan para edificios o condominios', True, True, 3650);
+
+
+-- Datos para la tabla: empresa
+INSERT INTO empresa (id, nombre, ruc, fecha_creacion, activa, plan_id, creador_id) VALUES (1, 'Superinka', 12345678901, '2026-02-21 12:36:05.708902', True, 1, 1);
+INSERT INTO empresa (id, nombre, ruc, fecha_creacion, activa, plan_id, creador_id) VALUES (22, 'LapPeru SAC', 65416343143, '2026-04-22 12:52:31.855912', True, 1, 23);
+INSERT INTO empresa (id, nombre, ruc, fecha_creacion, activa, plan_id, creador_id) VALUES (23, 'dasdafa', 48645645765, '2026-04-22 12:57:14.054549', True, 1, 24);
+INSERT INTO empresa (id, nombre, ruc, fecha_creacion, activa, plan_id, creador_id) VALUES (32, 'sac sac', 65416468464, '2026-04-23 23:39:27.116905', False, 1, 30);
+INSERT INTO empresa (id, nombre, ruc, fecha_creacion, activa, plan_id, creador_id) VALUES (33, 'calidex SAC', 61865468966, '2026-04-24 12:53:23.567283', False, 1, 32);
+
+-- Datos para la tabla: usuario
+INSERT INTO usuario (id, empresa_id, plan_id, nombre, email, password_hash, rol, tipo_usuario, recibir_alertas_email, activo, fecha_creacion) VALUES 
+(1, 1, 1, 'Admin Superinka', 'admin@superinka.com', '123456', 'ADMIN', 'HOGAR', True, True, '2026-02-21 12:36:05.931672'),
+(2, 1, 1, 'Jose', 'jose@test.com', '$2a$10$HqyenzalCqgdqMFGrqNxJeukOLLhntWHSrhaTZ3.rUJBN3F/xw1Vq', 'OPERADOR', 'HOGAR', True, True, NULL),
+(3, NULL, 1, 'jose', 'admin@ecosensor.com', '$2a$10$aiYsuodiAFkEyJzSgOk5OO0ZuWzgDIoMUrHRSBuButJfougXobTq.', 'ADMIN', 'HOGAR', True, True, NULL),
+(16, NULL, 1, 'jose', 'jose@gmail.com', 'AUTH0_USER', 'VISOR', 'HOGAR', True, True, '2026-04-11 12:36:37.761928'),
+(18, NULL, 1, 'jose', 'josealejadrohinojosa@gmail.com', 'AUTH0_USER', 'VISOR', 'HOGAR', True, True, '2026-04-14 10:06:26.653778'),
+(19, NULL, 1, 'alberto', 'alberto@gmail.com', 'AUTH0_USER', 'VISOR', 'HOGAR', True, True, '2026-04-17 13:09:53.266811'),
+(23, 22, 1, 'alejo', 'alejandrooo@gmail.com', 'AUTH0_USER', 'VISOR', 'EMPRESA', True, True, '2026-04-22 12:52:28.754566'),
+(24, 23, 1, 'asdasad', 'fsdfsf@gmail.com', 'AUTH0_USER', 'VISOR', 'EMPRESA', True, True, '2026-04-22 12:57:12.956535'),
+(29, 23, 1, 'Pedro', 'fjhfhdgh@gmail.com', 'AUTH0_USER', 'VISOR', 'EMPRESA', True, True, '2026-04-23 23:27:50.179304'),
+(30, 32, 1, 'pedritoo', 'kjnfjkdsnffg@gmail.com', 'AUTH0_USER', 'VISOR', 'EMPRESA', True, True, '2026-04-23 23:39:26.88325'),
+(31, 23, 1, 'alejo', 'alejandro@gmail.com', 'AUTH0_USER', 'VISOR', 'HOGAR', True, True, '2026-04-24 02:21:30.387822'),
+(32, 33, NULL, 'pepito', 'hbfthcfgf@gmail.com', 'AUTH0_USER', 'VISOR', 'EMPRESA', True, True, '2026-04-24 12:53:22.665245');
+
+
+
+-- Datos para la tabla: sensor
+INSERT INTO sensor (id, empresa_id, tipo, modelo, ubicacion, latitud, longitud, activo, fecha_instalacion, device_id, usuario_id, es_global, altura_instalacion) VALUES 
+(2, 1, 'TEMPERATURA', 'DHT22', 'Almacen', -12.046374, -77.042793, True, '2024-01-01', 'DEV002', NULL, False, 1.5),
+(108, NULL, 'AIRE', 'SDS011', 'Dormitorio', -11.94, -76.98, True, '2026-04-17', 'DEV-TPLH-Q6L9', 18, False, NULL),
+(109, NULL, 'AIRE', 'SDS011', 'Dormitorio', -11.94, -76.99, True, '2026-04-18', 'DEV-VBRJ-PHOW', 16, False, NULL),
+(110, NULL, 'AGUA', 'TSW-20M', 'Tanque de agua', -11.94, -76.99, True, '2026-04-21', 'DEV-O09D-4DEK', 16, False, NULL),
+(128, NULL, 'ENERGIA', 'EM24-DIN', 'Tablero eléctrico', -11.94, -76.99, True, '2026-04-23', 'DEV-0CMK-13PK', 29, False, NULL),
+(129, 32, 'AGUA', 'Submersible-P', 'Tanque de agua', -11.94, -76.99, True, '2026-04-23', 'DEV-P1C1-Y9DF', 30, False, NULL),
+(130, 23, 'ENERGIA', 'EM24-DIN', 'Tablero eléctrico', -11.94, -76.99, True, '2026-04-24', 'DEV-Z6WS-N5JY', 29, False, NULL),
+(131, 33, 'AGUA', 'YF-S201', 'Tanque de agua', -11.94, -76.99, True, '2026-04-24', 'DEV-VEMF-E5UD', 32, False, NULL),
+(132, 23, 'AGUA', 'Nitrate-Pro', 'Tanque de agua', -11.94, -76.99, True, '2026-04-24', 'DEV-JFN8-19CP', 31, False, NULL),
+(133, 22, 'ENERGIA', 'EM24-DIN', 'Tablero eléctrico', -11.94, -76.99, True, '2026-05-05', 'DEV-7BJJ-K2ZW', 23, False, NULL);
+
+-- Datos para la tabla: suscripcion
+INSERT INTO suscripcion (id, empresa_id, plan_id, fecha_inicio, fecha_fin, estado, payme_order_id, estado_pago, moneda, usuario_id) VALUES 
+(1, 1, 2, '2026-02-21', NULL, 'ACTIVA', NULL, NULL, 'PEN', NULL),
+(2, 1, 3, '2026-04-03', '2026-05-03', 'ACTIVA', NULL, 'PAGADO', 'PEN', NULL),
+(3, 1, 1, '2026-04-03', '2026-05-03', 'PENDIENTE', NULL, 'PENDIENTE', 'PEN', NULL),
+(4, 1, 2, '2026-04-07', '2026-05-07', 'PENDIENTE', NULL, 'PENDIENTE', 'PEN', NULL),
+(5, 1, 3, '2026-04-07', '2026-05-07', 'PENDIENTE', NULL, 'PENDIENTE', 'PEN', NULL),
+(6, 1, 1, '2026-04-08', '2026-05-08', 'PENDIENTE', NULL, 'PENDIENTE', 'PEN', NULL),
+(14, 32, 3, '2026-04-24', '2026-05-24', 'PENDIENTE', NULL, 'PENDIENTE', 'PEN', 30);
+
+
+-- Datos para la tabla: lectura_sensor
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (9, 2, 'TEMPERATURA', 25.5, 25.5, 60.0, '2026-03-25 18:09:15.094302', '°C', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (10, 2, 'TEMPERATURA', 28.2, 28.2, 65.0, '2026-03-25 18:09:15.094302', '°C', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (11, 2, 'CO2', 800.0, 26.0, 62.0, '2026-03-25 18:09:15.094302', 'ppm', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (12, 2, 'CO2', 1200.0, 27.0, 70.0, '2026-03-25 18:09:15.094302', 'ppm', True);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (13, 2, 'PM25', 35.0, 25.0, 60.0, '2026-03-25 18:09:15.094302', 'µg/m3', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (14, 2, 'PM25', 120.0, 26.0, 68.0, '2026-03-25 18:09:15.094302', 'µg/m3', True);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (15, 2, 'HUMEDAD', 60.0, 25.0, 60.0, '2026-03-25 18:09:15.094302', '%', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (16, 2, 'ENERGIA', 3.2, 25.0, 60.0, '2026-03-25 18:09:15.094302', 'kWh', False);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (76, 2, 'TEMPERATURA', 25.18016458422848, 26.11061267591375, 58.49569534130031, '2026-03-27 11:37:53.640137', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (77, 2, 'TEMPERATURA', 25.367868828534945, 29.63027213424821, 51.450053841999946, '2026-03-27 11:37:59.257027', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (78, 2, 'TEMPERATURA', 25.52184538781037, 27.42100460446177, 58.14509693850867, '2026-03-28 07:46:54.046075', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (79, 2, 'TEMPERATURA', 29.206343582055865, 28.74967737139821, 58.50308484820653, '2026-03-28 07:46:58.989251', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (80, 2, 'TEMPERATURA', 25.59207261450676, 26.34224534130009, 51.03746722171818, '2026-03-28 07:47:03.99202', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (81, 2, 'TEMPERATURA', 28.634421930757483, 25.021302927206573, 56.24996739905984, '2026-03-28 07:47:08.99751', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (82, 2, 'TEMPERATURA', 26.08224714055405, 27.98242927123624, 52.63213655986803, '2026-03-28 07:47:14.546227', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (83, 2, 'TEMPERATURA', 29.36965663681292, 29.01589694962831, 59.365519293901166, '2026-03-28 07:47:19.552565', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (84, 2, 'TEMPERATURA', 27.31470423660119, 27.31954451651539, 59.73550434680473, '2026-03-28 07:47:24.544613', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (85, 2, 'TEMPERATURA', 26.80752804128141, 29.667576289922373, 54.76199072103597, '2026-03-28 07:47:29.545189', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (86, 2, 'TEMPERATURA', 27.674016947891364, 28.714786279581062, 55.95120443468852, '2026-03-28 07:47:34.544681', NULL, NULL);
+INSERT INTO lectura_sensor (id, sensor_id, tipo_metrica, valor, temperatura, humedad, fecha, unidad, anomalia_detectada) VALUES (87, 2, 'TEMPERATURA', 29.77372163602605, 25.12819807627394, 59.50915114413689, '2026-03-28 07:47:39.547749', NULL, NULL);

@@ -1,0 +1,199 @@
+PASOS PARA CONFIGURACIÓN DE AUTH0 (CONTROL TOTAL DE ACCESO)
+------------------------------------------------------------
+
+1. CREACIÓN DE CUENTA Y TENANT
+	a) REGISTRO INICIAL:
+   	- Registrarse en https://auth0.com con el correo corporativo y cree contraseña.
+  	 
+	
+	b) CREAR EL "TENANT" (SU ESPACIO DE TRABAJO):
+
+	Auth0 le pedirá crear un Tenant. Piense en esto como el "nombre de su empresa" dentro del sistema.
+
+	Nombre del Tenant: Ponga el nombre de su empresa en minúsculas y sin espacios.
+
+	Region: Seleccione "US - United States".
+
+	Environment Tag: Seleccione "Production".
+
+	Haga clic en "Create Tenant".
+
+	c) ¿DÓNDE ESTÁ SU DOMINIO (DOMAIN)?
+
+	Una vez dentro del panel, en la parte superior izquierda (debajo del nombre de su empresa), verá un texto que termina en .auth0.com. Ese es su DOMAIN.
+	
+	Ejemplo: empresa-oficial.us.auth0.com
+
+	IMPORTANTE: Copie ese nombre, lo necesitará para el siguiente paso y la variable de entorno.
+
+	d) VINCULAR CON EL BACKEND (CÓDIGO):
+
+	Abra el archivo "application.properties" de la aplicación.
+
+	Busque la línea que dice:
+	spring.security.oauth2.resourceserver.jwt.issuer-uri=...
+
+	Reemplace lo que esté ahí por su dominio, asegurándose de que empiece con https:// y termine con una barra /.
+
+
+2. CONFIGURACIÓN DE LA API (PARA EL BACKEND JAVA)
+   - Ir a 'Applications' -> 'APIs' -> 'Create API'.
+   - Name: EcoSensor API
+   - Identifier: https://ecosensor-api  (Escribirlo sin barra al final).
+   - Haga clic en Create.
+	- IMPORTANTE (ACTIVAR PERMISOS): En la pestaña 'Settings' de esta API, busque 'RBAC Settings' y active (ON):
+    	 * Enable RBAC
+    	 * Add Permissions in the Access Token
+ 	  - Clic en 'Save' al final de la página.
+
+3. CONFIGURACIÓN DE LA APLICACIÓN (PARA EL FRONTEND ANGULAR)
+   - Ir a 'Applications' -> 'Applications' -> 'Create Application'.
+   - Name: EcoSensor frontend
+   - Type: Single Page Web Applications.
+   - En la pestaña 'Settings', configurar:
+     Allowed Callback URLs: http://localhost:4200/callback,  (URL de producción cuando esté lista)
+     Allowed Logout URLs: http://localhost:4200, 	 (URL de producción cuando esté lista)
+     Allowed Web Origins: http://localhost:4200, 	 (URL de producción cuando esté lista)
+     Allowed Origins (CORS): http://localhost:4200, 	 (URL de producción cuando esté lista)
+   - Guardar cambios.
+
+4. DATOS PARA EL ARCHIVO application.properties
+    Debe asegurar que estas líneas existan en el proyecto:
+
+   spring.security.oauth2.resourceserver.jwt.issuer-uri=https://${AUTH0_DOMAIN}/
+   spring.security.oauth2.resourceserver.jwt.audience=https://ecosensor-api
+
+
+5. VARIABLES DE ENTORNO (SEGURIDAD)
+   El administrador debe crear esta variable en el servidor o IDE para que el sistema se conecte a SU cuenta:
+   
+   - Nombre: AUTH0_DOMAIN
+     Valor: (Lo saca de 'Domain' en la pestaña Settings de la Application y que tambien se copió en el paso 1 c)
+	  NOTA: Sin el https:// y sin barras.
+     
+
+6. CONFIGURACIÓN DE ROLES Y EMAIL (AUTH0 ACTIONS)
+
+
+En el menú izquierdo de Auth0, vaya a Actions -> Library.
+
+Haga clic en el botón azul Create Action -> Build from scratch.
+
+Name: AgregarRolesToken
+
+Trigger: Login / Post Login
+
+
+Se abrirá un editor de código. Borre todo lo que haya y pegue exactamente este código:
+
+
+exports.onExecutePostLogin = async (event, api) => {
+  const namespace = "https://ecosensor-api/";
+
+  if (event.user.email) {
+    api.accessToken.setCustomClaim(namespace + "email", event.user.email);
+    api.accessToken.setCustomClaim("email", event.user.email);
+  }
+
+  if (event.authorization && event.authorization.roles) {
+    api.accessToken.setCustomClaim(namespace + "roles", event.authorization.roles);
+  }
+};
+
+
+Haga clic en Deploy (botón arriba a la derecha).
+
+MUY IMPORTANTE: Ahora vaya a Actions -> Triggers.
+
+Haga clic en Post Login.
+
+Verá su acción AgregarRolesToken en el lado derecho. Arrástrela y suéltela en el flujo (el círculo que une el "Start" con el "Complete").
+
+Haga clic en Apply.
+
+
+7. GESTIÓN DE USUARIOS Y ASIGNACIÓN DE ROLES
+Una vez configurado todo el sistema, para que una persona pueda entrar a la aplicación, usted debe seguir estos pasos en el panel de Auth0:
+
+Vaya a User Management -> Users.
+
+Haga clic en Create User para registrar a un nuevo usuario.
+
+
+  
+------------------------------------------------------------
+PASOS PARA CONFIGURACIÓN DE BREVO (ENVÍO DE CORREOS)
+------------------------------------------------------------
+
+1. REGISTRO Y VERIFICACIÓN DE REMITENTE:
+   - Registrarse en https://www.brevo.com/.
+   - IMPORTANTE: Vaya al menú de su cuenta (arriba a la derecha) -> "Senders, Domains & Dedicated IPs".
+   - En la pestaña "Senders", haga clic en "Add a sender".
+   - Verifique el correo electrónico corporativo desde el cual saldrán las alertas.
+   - Revise su bandeja de entrada y confirme el enlace que le enviará Brevo.
+   - (Si no está verificado, el sistema dará error al enviar correos).
+
+
+2. OBTENER LA CLAVE SMTP (PASSWORD):
+   - Vaya al menú de perfil -> "SMTP & API".
+   - En la pestaña "SMTP" verá una sección que dice "SMTP Server details".
+   - De ahí debe sacar el LOGIN (ese es el Username, suele ser su correo o un código alfanumérico).
+   - Luego, haga clic en el botón "Generate a new SMTP key" para obtener su PASSWORD y copiela(Este será su MAIL_PASSWORD).
+
+3. MODIFICACIÓN DEL ARCHIVO application.properties:
+El administrador debe abrir el archivo de configuración del Backend y reemplazar manualmente los datos de ejemplo por los suyos:
+
+En la línea: spring.mail.username=...
+-> Borre el valor actual y escriba su Login de Brevo.
+
+En la línea: app.mail.from=...
+-> Borre el valor actual y escriba su Correo verificado.
+
+4. VARIABLE DE ENTORNO (SEGURIDAD):
+Para la contraseña, no debe escribirla en el archivo. Debe crear o modificar la variable de entorno en el servidor:
+
+Nombre: MAIL_PASSWORD
+
+Valor: (La clave SMTP generada en el paso 2).
+
+
+
+PASOS PARA CONFIGURACIÓN DE NEON CONSOLE Y SPRING BOOT
+-------------------------------------------------------
+
+1. CREACIÓN DE CUENTA
+   - Registrarse en https://console.neon.tech con correo corporativo.
+   - Crear un nuevo proyecto 
+   - Por defecto, Neon creará una base de datos llamada 'neondb'.
+
+2. CONFIGURACIÓN DE BASE DE DATOS
+   - Ir a la sección 'SQL Editor'.
+   - Asegúrese de que en la parte superior esté seleccionada la base de datos 'neondb'.
+   - Pegar y ejecutar el script 'ecosensor.sql' entregado.
+
+3. OBTENCIÓN DE CREDENCIALES
+   - Ir a 'Dashboard' -> 'Connect'.
+   A. HOST: Es la dirección que termina en '.neon.tech'. 
+      (Ejemplo: ep-odd-paper-ai9rzj7d-pooler.c-4.us-east-1.aws.neon.tech)
+   
+   B. USERNAME (usuario): Es el nombre que aparece antes del símbolo '@'.
+      (Ejemplo: neondb_owner)
+   
+   C. PASSWORD: Se obtiene haciendo clic en el botón 'Show password' (el ícono del ojo) 
+      debajo del cuadro de conexión.
+
+
+4. CONFIGURACIÓN EN SPRING BOOT (PROPIEDADES)
+   - Archivo: application.properties y reemplace los valores
+
+   - Configurar URL: spring.datasource.url=jdbc:postgresql://[TU_HOST]:5432/neondb?sslmode=require
+   - Configurar Usuario: spring.datasource.username=[su_usuario_aqui]
+   - Configurar Password: spring.datasource.password=${DB_PASSWORD}
+	
+
+5. VARIABLE DE ENTORNO (SEGURIDAD)
+   Para proteger su base de datos, la contraseña NO debe escribirse en el archivo anterior. 
+   Debe crear una Variable de Entorno en su servidor o sistema:
+
+   - En el servidor o IDE, crear una Variable de Entorno llamada: DB_PASSWORD
+   - Pegar ahí la contraseña obtenida en el paso 3-C.
