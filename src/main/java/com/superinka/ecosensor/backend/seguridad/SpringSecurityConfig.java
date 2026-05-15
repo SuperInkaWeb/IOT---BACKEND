@@ -98,7 +98,7 @@ public class SpringSecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
 
-        String issuer = "https://dev-khvop4d61s5ip8d3.us.auth0.com";
+        String issuer = "https://dev-khvop4d61s5ip8d3.us.auth0.com/";
 
         NimbusJwtDecoder jwtDecoder = (NimbusJwtDecoder)
                 JwtDecoders.fromIssuerLocation(issuer);
