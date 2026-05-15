@@ -98,7 +98,7 @@ public class SpringSecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
 
-        String issuer = "https://dev-6u1q0s2nx3pub4do.us.auth0.com/";
+        String issuer = "https://dev-khvop4d61s5ip8d3.us.auth0.com";
 
         NimbusJwtDecoder jwtDecoder = (NimbusJwtDecoder)
                 JwtDecoders.fromIssuerLocation(issuer);
@@ -121,7 +121,7 @@ public class SpringSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:4200",
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:4200","https://zentiot.com",
         		"https://ecosensor-inka.netlify.app", 
                 "https://*.netlify.app"));
         	
