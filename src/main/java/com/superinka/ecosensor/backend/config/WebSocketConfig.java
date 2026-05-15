@@ -20,7 +20,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
      // Permitimos tanto local como cualquier subdominio de Netlify para evitar bloqueos
-        .setAllowedOriginPatterns("http://localhost:4200", "https://*.netlify.app")
+        .setAllowedOriginPatterns("http://localhost:4200","https://zentiot.com", "https://*.netlify.app")
         .withSockJS(); // Es mejor mantener SockJS para mayor compatibilidad en la nube
     }
 }
